@@ -1,0 +1,93 @@
+# golangci-lint v2.4.0 configuration
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+    - unparam
+    - nakedret
+    - prealloc
+    - gocritic
+    - gochecknoinits
+    - gocyclo
+    - bodyclose
+    - revive
+    - goconst
+    - copyloopvar
+    
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - gofumpt
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  govet:
+    check-shadowing: true
+  misspell:
+    locale: US
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/axondata/go-runit
+  gocritic:
+    enabled-checks:
+      - nilValReturn
+      - rangeValCopy
+      - rangeExprCopy
+      - appendAssign
+      - appendCombine
+      - caseOrder
+      - dupArg
+      - dupBranchBody
+      - dupCase
+      - dupSubExpr
+      - elseif
+      - ifElseChain
+      - regexpMust
+      - singleCaseSwitch
+      - sloppyLen
+      - switchTrue
+      - typeSwitchVar
+      - underef
+      - unlambda
+      - unslice
+  unparam:
+    check-exported: false
+  nakedret:
+    max-func-lines: 30
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocyclo
+        - dupl
+        - gosec
+    - path: \.pb\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - gocritic
+  exclude-use-default: true

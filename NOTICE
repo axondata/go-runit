@@ -1,0 +1,4 @@
+go-runit
+Copyright 2025 Sean Chittenden
+
+Go library for runit service control.

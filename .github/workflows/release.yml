@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25.1'
+        cache: true
+
+    - name: Run tests
+      run: go test -v ./...
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        git log --pretty=format:"* %s (%h)" $(git describe --tags --abbrev=0 HEAD^)..HEAD > CHANGELOG_CURRENT.md
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        cat CHANGELOG_CURRENT.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body: |
+          ## Changes
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Installation
+          ```bash
+          go get github.com/axondata/go-runit@${{ github.ref_name }}
+          ```
+        draft: false
+        prerelease: false

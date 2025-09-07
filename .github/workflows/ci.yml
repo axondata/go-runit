@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go: ['1.25']
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go }}
+        cache: true
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.4.0
+
+    - name: Run linter
+      run: golangci-lint run ./...
+
+    - name: Run tests
+      run: go test -v -race -coverprofile=coverage.out ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Install runit (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y runit
+
+    - name: Install runit (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install runit
+
+    - name: Run integration tests
+      run: go test -tags=integration -v -race -coverprofile=coverage_integration.out ./...
+      continue-on-error: true
+
+    - name: Upload integration coverage
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage_integration.out
+        flags: integration
+        name: codecov-integration
+
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25.1'
+        cache: true
+
+    - name: Run benchmarks
+      run: go test -bench=. -benchmem ./...
