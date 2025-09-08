@@ -90,7 +90,7 @@ When reporting issues, please include:
 ## Performance Considerations
 
 This library prioritizes:
-- Minimal allocations on hot paths
+- Zero allocations on hot paths (status decode achieves 0 allocs/op)
 - Direct system calls over process spawning
 - Efficient binary parsing
 - Concurrent operations where beneficial

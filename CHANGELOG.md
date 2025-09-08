@@ -28,8 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Apache 2.0 license
 
 ### Technical Details
-- Status decode performance: ~48ns/op with 1 allocation
-- Parallel decode: ~14ns/op
+- Status decode performance: ~38ns/op with zero allocations
+- Parallel decode: ~10ns/op with zero allocations
 - State/Operation strings: <1ns/op with zero allocations
 - TAI64N timestamp decoding based on official runit source
 - Compatible with daemontools/runit specification

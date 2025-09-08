@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+
+	"github.com/google/renameio/v2"
 )
 
 // DevTree manages a development runit service tree for unprivileged operation.
@@ -116,7 +118,7 @@ func (d *DevTree) EnsureRunsvdir() error {
 	}
 
 	pidData := []byte(strconv.Itoa(cmd.Process.Pid))
-	if err := os.WriteFile(pidFile, pidData, FileMode); err != nil {
+	if err := renameio.WriteFile(pidFile, pidData, FileMode); err != nil {
 		cmd.Process.Kill()
 		return fmt.Errorf("writing pid file: %w", err)
 	}

@@ -104,37 +104,55 @@ const (
 	OpStatus
 )
 
+// Operation string constants
+const (
+	opUnknownStr   = "unknown"
+	opUpStr        = "up"
+	opOnceStr      = "once"
+	opDownStr      = "down"
+	opTermStr      = "term"
+	opInterruptStr = "interrupt"
+	opHUPStr       = "hup"
+	opAlarmStr     = "alarm"
+	opQuitStr      = "quit"
+	opKillStr      = "kill"
+	opPauseStr     = "pause"
+	opContStr      = "cont"
+	opExitStr      = "exit"
+	opStatusStr    = "status"
+)
+
 // String returns the string representation of an Operation
 func (op Operation) String() string {
 	switch op {
 	case OpUp:
-		return "up"
+		return opUpStr
 	case OpOnce:
-		return "once"
+		return opOnceStr
 	case OpDown:
-		return "down"
+		return opDownStr
 	case OpTerm:
-		return "term"
+		return opTermStr
 	case OpInterrupt:
-		return "interrupt"
+		return opInterruptStr
 	case OpHUP:
-		return "hup"
+		return opHUPStr
 	case OpAlarm:
-		return "alarm"
+		return opAlarmStr
 	case OpQuit:
-		return "quit"
+		return opQuitStr
 	case OpKill:
-		return "kill"
+		return opKillStr
 	case OpPause:
-		return "pause"
+		return opPauseStr
 	case OpCont:
-		return "cont"
+		return opContStr
 	case OpExit:
-		return "exit"
+		return opExitStr
 	case OpStatus:
-		return "status"
+		return opStatusStr
 	default:
-		return "unknown"
+		return opUnknownStr
 	}
 }
 

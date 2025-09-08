@@ -44,7 +44,7 @@
 //
 //   - Zero external process spawning (no exec of sv/runsv)
 //   - Direct communication with supervise control/status endpoints
-//   - Minimal allocations on hot paths
+//   - Zero allocations on hot paths (status decode, state strings)
 //   - Context-aware operations with proper timeouts
 //   - Type safety (no string-based operation codes)
 //

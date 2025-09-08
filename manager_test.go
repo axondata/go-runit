@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/google/renameio/v2"
 )
 
 func createTestService(t *testing.T, dir, name string, pid int, want byte) string {
@@ -18,7 +20,7 @@ func createTestService(t *testing.T, dir, name string, pid int, want byte) strin
 
 	statusPath := filepath.Join(superviseDir, "status")
 	statusData := makeStatusData(pid, want, 0, byte(pid))
-	if err := os.WriteFile(statusPath, statusData, 0o644); err != nil {
+	if err := renameio.WriteFile(statusPath, statusData, 0o644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -41,6 +41,9 @@ type Client struct {
 	// WatchDebounce is the debounce duration for watch events to coalesce rapid changes
 	WatchDebounce time.Duration
 
+	// Config holds optional supervision system configuration for compatibility
+	Config *ServiceConfig
+
 	// mu protects concurrent access to send operations
 	mu sync.Mutex
 }
@@ -127,6 +130,15 @@ func New(serviceDir string, opts ...Option) (*Client, error) {
 func (c *Client) send(ctx context.Context, op Operation) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Check if this operation is supported by the configured supervision system
+	if c.Config != nil && !c.Config.IsOperationSupported(op) {
+		return &OpError{
+			Op:   op,
+			Path: c.ServiceDir,
+			Err:  fmt.Errorf("operation %s not supported by %s", op, c.Config.Type),
+		}
+	}
 
 	controlPath := filepath.Join(c.ServiceDir, SuperviseDir, ControlFile)
 	cmd := op.Byte()

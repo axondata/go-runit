@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/renameio/v2"
 )
 
 // ServiceBuilder provides a fluent interface for creating runit service directories
@@ -241,7 +243,7 @@ func (b *ServiceBuilder) Build() error {
 
 		for key, value := range b.Env {
 			envFile := filepath.Join(envDir, key)
-			if err := os.WriteFile(envFile, []byte(value), FileMode); err != nil {
+			if err := renameio.WriteFile(envFile, []byte(value), FileMode); err != nil {
 				return fmt.Errorf("writing env file %s: %w", key, err)
 			}
 		}
@@ -249,14 +251,14 @@ func (b *ServiceBuilder) Build() error {
 
 	runScript := b.buildRunScript()
 	runFile := filepath.Join(serviceDir, "run")
-	if err := os.WriteFile(runFile, []byte(runScript), ExecMode); err != nil {
+	if err := renameio.WriteFile(runFile, []byte(runScript), ExecMode); err != nil {
 		return fmt.Errorf("writing run script: %w", err)
 	}
 
 	if len(b.Finish) > 0 {
 		finishScript := b.buildFinishScript()
 		finishFile := filepath.Join(serviceDir, "finish")
-		if err := os.WriteFile(finishFile, []byte(finishScript), ExecMode); err != nil {
+		if err := renameio.WriteFile(finishFile, []byte(finishScript), ExecMode); err != nil {
 			return fmt.Errorf("writing finish script: %w", err)
 		}
 	}
@@ -269,7 +271,7 @@ func (b *ServiceBuilder) Build() error {
 
 		logRunScript := b.buildLogRunScript()
 		logRunFile := filepath.Join(logDir, "run")
-		if err := os.WriteFile(logRunFile, []byte(logRunScript), ExecMode); err != nil {
+		if err := renameio.WriteFile(logRunFile, []byte(logRunScript), ExecMode); err != nil {
 			return fmt.Errorf("writing log/run script: %w", err)
 		}
 

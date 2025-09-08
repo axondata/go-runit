@@ -77,27 +77,26 @@ func (c *Client) Watch(ctx context.Context) (<-chan WatchEvent, func() error, er
 			return
 		}
 
-		if len(status.Raw) == StatusFileSize {
-			var currentRaw [StatusFileSize]byte
-			copy(currentRaw[:], status.Raw)
+		// Raw is now an array, so we can use it directly
+		currentRaw := status.Raw
 
-			mu.Lock()
-			if closed {
+		mu.Lock()
+		if closed {
+			mu.Unlock()
+			return
+		}
+		if currentRaw != lastRaw {
+			lastRaw = currentRaw
+			// Keep the lock while sending to prevent races with stop()
+			select {
+			case ch <- WatchEvent{Status: status}:
+				mu.Unlock()
+			case <-ctx.Done():
 				mu.Unlock()
 				return
 			}
-			if currentRaw != lastRaw {
-				lastRaw = currentRaw
-				// Keep the lock while sending to prevent races with stop()
-				select {
-				case ch <- WatchEvent{Status: status}:
-					mu.Unlock()
-				case <-ctx.Done():
-					mu.Unlock()
-				}
-			} else {
-				mu.Unlock()
-			}
+		} else {
+			mu.Unlock()
 		}
 	}
 

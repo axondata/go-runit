@@ -30,27 +30,40 @@ const (
 	StateExited
 )
 
+// State string constants
+const (
+	stateUnknownStr   = "unknown"
+	stateDownStr      = "down"
+	stateStartingStr  = "starting"
+	stateRunningStr   = "running"
+	statePausedStr    = "paused"
+	stateStoppingStr  = "stopping"
+	stateFinishingStr = "finishing"
+	stateCrashedStr   = "crashed"
+	stateExitedStr    = "exited"
+)
+
 // String returns the string representation of the state
 func (s State) String() string {
 	switch s {
 	case StateDown:
-		return "down"
+		return stateDownStr
 	case StateStarting:
-		return "starting"
+		return stateStartingStr
 	case StateRunning:
-		return "running"
+		return stateRunningStr
 	case StatePaused:
-		return "paused"
+		return statePausedStr
 	case StateStopping:
-		return "stopping"
+		return stateStoppingStr
 	case StateFinishing:
-		return "finishing"
+		return stateFinishingStr
 	case StateCrashed:
-		return "crashed"
+		return stateCrashedStr
 	case StateExited:
-		return "exited"
+		return stateExitedStr
 	default:
-		return "unknown"
+		return stateUnknownStr
 	}
 }
 
@@ -80,8 +93,8 @@ type Status struct {
 	Uptime time.Duration
 	// Flags contains service configuration flags
 	Flags Flags
-	// Raw contains the original 20-byte status record
-	Raw []byte
+	// Raw contains the original 20-byte status record as an array (stack allocated)
+	Raw [StatusFileSize]byte
 }
 
 // decodeStatus decodes a 20-byte runit/daemontools status record.
@@ -100,8 +113,7 @@ func decodeStatus(data []byte) (Status, error) {
 	}
 
 	var st Status
-	st.Raw = make([]byte, StatusFileSize)
-	copy(st.Raw, data)
+	copy(st.Raw[:], data)
 
 	// Extract binary fields from the status file
 	extractStatusFields(&st, data)
@@ -178,11 +190,15 @@ func determineState(pid int, flags Flags, data []byte) State {
 	switch {
 	case !isRunning && flags.WantDown:
 		return StateDown
-	case !isRunning && flags.WantUp:
+	case !isRunning && flags.WantUp && !isFinishing:
 		return StateCrashed
+	case !isRunning && isFinishing:
+		// Finish script is running (main process has exited)
+		return StateFinishing
 	case isRunning && isPaused:
 		return StatePaused
 	case isRunning && isFinishing:
+		// This shouldn't normally happen, but handle it
 		return StateFinishing
 	case isRunning && flags.WantDown:
 		return StateStopping

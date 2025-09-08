@@ -1,5 +1,5 @@
-//go:build integration
-// +build integration
+//go:build integration || integration_runit
+// +build integration integration_runit
 
 package runit_test
 
@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/google/renameio/v2"
 
 	"github.com/axondata/go-runit"
 )
@@ -48,7 +50,7 @@ echo "Service stopping"
 exit 0
 `
 	runFile := filepath.Join(serviceDir, "run")
-	if err := os.WriteFile(runFile, []byte(runScript), 0o755); err != nil {
+	if err := renameio.WriteFile(runFile, []byte(runScript), 0o755); err != nil {
 		t.Fatalf("failed to write run script: %v", err)
 	}
 
@@ -248,7 +250,7 @@ exec sleep 300`,
 			}
 
 			runFile := filepath.Join(serviceDir, "run")
-			if err := os.WriteFile(runFile, []byte(tc.script), 0o755); err != nil {
+			if err := renameio.WriteFile(runFile, []byte(tc.script), 0o755); err != nil {
 				t.Fatalf("failed to write run script: %v", err)
 			}
 

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/google/renameio/v2"
 )
 
 func TestClientNew(t *testing.T) {
@@ -132,7 +134,7 @@ func TestClientStatus(t *testing.T) {
 
 	statusPath := filepath.Join(superviseDir, "status")
 	statusData := makeStatusData(1234, 'u', 0, 1)
-	if err := os.WriteFile(statusPath, statusData, 0o644); err != nil {
+	if err := renameio.WriteFile(statusPath, statusData, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
