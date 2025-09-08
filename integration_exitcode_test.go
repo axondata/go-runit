@@ -1,5 +1,5 @@
-//go:build integration
-// +build integration
+//go:build integration || integration_runit
+// +build integration integration_runit
 
 package runit_test
 

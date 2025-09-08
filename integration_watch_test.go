@@ -1,5 +1,5 @@
-//go:build integration && (linux || darwin)
-// +build integration
+//go:build (integration || integration_runit) && (linux || darwin)
+// +build integration integration_runit
 // +build linux darwin
 
 package runit_test

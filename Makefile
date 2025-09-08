@@ -7,9 +7,21 @@ all: test lint
 test:
 	go test -v -race ./...
 
-# Run integration tests (requires runit installed)
+# Run runit integration tests (requires runit installed)
 test-integration:
 	go test -tags=integration -v -race ./...
+
+# Run runit integration tests explicitly
+test-integration-runit:
+	go test -tags=integration_runit -v -race ./...
+
+# Run daemontools integration tests (requires daemontools installed)
+test-integration-daemontools:
+	go test -tags=integration_daemontools -v -race ./...
+
+# Run s6 integration tests (requires s6 installed)
+test-integration-s6:
+	go test -tags=integration_s6 -v -race ./...
 
 # Run all tests
 test-all: test test-integration
@@ -80,18 +92,21 @@ vulncheck:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  test            - Run unit tests"
-	@echo "  test-integration- Run integration tests (requires runit)"
-	@echo "  test-all        - Run all tests"
-	@echo "  coverage        - Generate coverage report"
-	@echo "  coverage-all    - Generate coverage with integration tests"
-	@echo "  lint            - Run golangci-lint"
-	@echo "  bench           - Run benchmarks"
-	@echo "  fuzz            - Run fuzz tests (30s each)"
-	@echo "  fuzz-quick      - Run quick fuzz tests (5s each)"
-	@echo "  install         - Install the library"
-	@echo "  clean           - Clean build artifacts"
-	@echo "  fmt             - Format code"
-	@echo "  deps            - Update dependencies"
-	@echo "  vulncheck       - Check for vulnerabilities"
-	@echo "  help            - Show this help message"
+	@echo "  test                         - Run unit tests"
+	@echo "  test-integration             - Run runit integration tests (requires runit)"
+	@echo "  test-integration-runit       - Run runit integration tests explicitly"
+	@echo "  test-integration-daemontools - Run daemontools integration tests (requires daemontools)"
+	@echo "  test-integration-s6          - Run s6 integration tests (requires s6)"
+	@echo "  test-all                     - Run all tests"
+	@echo "  coverage                     - Generate coverage report"
+	@echo "  coverage-all                 - Generate coverage with integration tests"
+	@echo "  lint                         - Run golangci-lint"
+	@echo "  bench                        - Run benchmarks"
+	@echo "  fuzz                         - Run fuzz tests (30s each)"
+	@echo "  fuzz-quick                   - Run quick fuzz tests (5s each)"
+	@echo "  install                      - Install the library"
+	@echo "  clean                        - Clean build artifacts"
+	@echo "  fmt                          - Format code"
+	@echo "  deps                         - Update dependencies"
+	@echo "  vulncheck                    - Check for vulnerabilities"
+	@echo "  help                         - Show this help message"

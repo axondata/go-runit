@@ -30,27 +30,40 @@ const (
 	StateExited
 )
 
+// State string constants
+const (
+	stateUnknownStr   = "unknown"
+	stateDownStr      = "down"
+	stateStartingStr  = "starting"
+	stateRunningStr   = "running"
+	statePausedStr    = "paused"
+	stateStoppingStr  = "stopping"
+	stateFinishingStr = "finishing"
+	stateCrashedStr   = "crashed"
+	stateExitedStr    = "exited"
+)
+
 // String returns the string representation of the state
 func (s State) String() string {
 	switch s {
 	case StateDown:
-		return "down"
+		return stateDownStr
 	case StateStarting:
-		return "starting"
+		return stateStartingStr
 	case StateRunning:
-		return "running"
+		return stateRunningStr
 	case StatePaused:
-		return "paused"
+		return statePausedStr
 	case StateStopping:
-		return "stopping"
+		return stateStoppingStr
 	case StateFinishing:
-		return "finishing"
+		return stateFinishingStr
 	case StateCrashed:
-		return "crashed"
+		return stateCrashedStr
 	case StateExited:
-		return "exited"
+		return stateExitedStr
 	default:
-		return "unknown"
+		return stateUnknownStr
 	}
 }
 

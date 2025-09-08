@@ -1,4 +1,4 @@
-# go-runit
+# `go-runit`
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/axondata/go-runit.svg)](https://pkg.go.dev/github.com/axondata/go-runit)
 [![Go Report Card](https://goreportcard.com/badge/github.com/axondata/go-runit)](https://goreportcard.com/report/github.com/axondata/go-runit)
@@ -6,17 +6,18 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub release](https://img.shields.io/github/release/axondata/go-runit.svg)](https://github.com/axondata/go-runit/releases)
 
-Go-native library for runit control without shelling out to `sv`. Speaks directly to each service's `supervise/` endpoints.
+A Go-native library to control [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervisor.
 
 ## Features
 
 - **Native control**: Write single-byte commands directly to `supervise/control`
-- **Binary status decoding**: Parse the 20-byte `supervise/status` record
+- **Binary status decoding**: Parses `supervise/status` record
 - **Real-time watching**: Monitor status changes via fsnotify (no polling)
-- **Concurrent operations**: Manage multiple services with worker pools
+- **Concurrent operations**: Manage multiple services with worker pools via [`Manager`](https://pkg.go.dev/github.com/axondata/go-runit#Manager)
 - **Zero allocations**: Optimized hot paths with stack-based operations
 - **Platform support**: Linux and macOS (darwin)
-- **Dev mode**: Optional unprivileged runsvdir trees for development
+- **Dev mode**: Optional unprivileged `runsvdir` trees for development
+- **Compatibility**: Works with [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervision system
 
 ## Installation
 
@@ -223,22 +224,63 @@ builder.
 err := builder.Build()
 ```
 
+## Compatibility with daemontools and s6
+
+This library works with any daemontools-compatible supervision system, including:
+- **runit** - Full support for all operations
+- **daemontools** - Compatible except for `Once()` and `Quit()` operations
+- **s6** - Full compatibility with all operations
+
+The library provides factory functions for each system:
+
+```go
+// For runit
+config := runit.RunitConfig()
+client, err := runit.NewClientWithConfig("/etc/service/myapp", config)
+
+// For daemontools
+config := runit.DaemontoolsConfig()
+client, err := runit.NewClientWithConfig("/service/myapp", config)
+
+// For s6
+config := runit.S6Config()
+client, err := runit.NewClientWithConfig("/run/service/myapp", config)
+
+// Service builders for each system
+runitBuilder := runit.NewServiceBuilder("myapp", "/etc/service")
+dtBuilder := runit.DaemontoolsServiceBuilder("myapp", "/service")
+s6Builder := runit.S6ServiceBuilder("myapp", "/run/service")
+```
+
+### Differences between systems
+
+| Feature | runit | daemontools | s6 |
+|---------|-------|-------------|-----|
+| Default path | `/etc/service` | `/service` | `/run/service` |
+| Privilege tool | `chpst` | `setuidgid` | `s6-setuidgid` |
+| Logger | `svlogd` | `multilog` | `s6-log` |
+| Scanner | `runsvdir` | `svscan` | `s6-svscan` |
+| `Once()` support | ✓ | ✗ | ✓ |
+| `Quit()` support | ✓ | ✗ | ✓ |
+
+All three systems use the same binary protocol for `supervise/control` and `supervise/status`, making this library compatible with all of them.
+
 ## Control Commands Reference
 
-| Method | Byte | Signal | Description |
-|--------|------|--------|-------------|
-| `Up()` | `u` | - | Start service (want up) |
-| `Once()` | `o` | - | Run service once |
-| `Down()` | `d` | - | Stop service (want down) |
-| `Term()` | `t` | SIGTERM | Graceful termination |
-| `Interrupt()` | `i` | SIGINT | Interrupt |
-| `HUP()` | `h` | SIGHUP | Reload configuration |
-| `Alarm()` | `a` | SIGALRM | Alarm signal |
-| `Quit()` | `q` | SIGQUIT | Quit with core dump |
-| `Kill()` | `k` | SIGKILL | Force kill |
-| `Pause()` | `p` | SIGSTOP | Pause process |
-| `Cont()` | `c` | SIGCONT | Continue process |
-| `ExitSupervise()` | `x` | - | Terminate supervise |
+| Method | Byte | Signal | Description | runit | daemontools | s6 |
+|--------|------|--------|-------------|-------|-------------|-----|
+| `Up()` | `u` | - | Start service (want up) | ✓ | ✓ | ✓ |
+| `Once()` | `o` | - | Run service once | ✓ | ✗ | ✓ |
+| `Down()` | `d` | - | Stop service (want down) | ✓ | ✓ | ✓ |
+| `Term()` | `t` | SIGTERM | Graceful termination | ✓ | ✓ | ✓ |
+| `Interrupt()` | `i` | SIGINT | Interrupt | ✓ | ✓ | ✓ |
+| `HUP()` | `h` | SIGHUP | Reload configuration | ✓ | ✓ | ✓ |
+| `Alarm()` | `a` | SIGALRM | Alarm signal | ✓ | ✓ | ✓ |
+| `Quit()` | `q` | SIGQUIT | Quit with core dump | ✓ | ✗ | ✓ |
+| `Kill()` | `k` | SIGKILL | Force kill | ✓ | ✓ | ✓ |
+| `Pause()` | `p` | SIGSTOP | Pause process | ✓ | ✓ | ✓ |
+| `Cont()` | `c` | SIGCONT | Continue process | ✓ | ✓ | ✓ |
+| `ExitSupervise()` | `x` | - | Terminate supervise | ✓ | ✓ | ✓ |
 
 ## Status Binary Format
 
@@ -286,17 +328,42 @@ go test ./...
 
 ### Integration Tests
 
-The library includes comprehensive integration tests that verify functionality against real runit services. These tests require runit tools (`runsv`, `runsvdir`) to be installed.
+The library includes integration tests for different supervision systems. Each requires the respective tools to be installed.
+
+#### Runit Integration Tests
+
+Tests for runit require `runsv` and `runsvdir` to be installed:
 
 ```bash
-# Run integration tests
+# Run all runit integration tests
 go test -tags=integration -v ./...
+
+# Or explicitly for runit
+go test -tags=integration_runit -v ./...
 
 # Run a specific integration test
 go test -tags=integration -v -run TestIntegrationSingleService
 ```
 
-Integration tests cover:
+#### Daemontools Integration Tests
+
+Tests for daemontools require `svscan` and `supervise` to be installed:
+
+```bash
+# Run daemontools integration tests
+go test -tags=integration_daemontools -v ./...
+```
+
+#### S6 Integration Tests
+
+Tests for s6 require `s6-svscan` and `s6-supervise` to be installed:
+
+```bash
+# Run s6 integration tests
+go test -tags=integration_s6 -v ./...
+```
+
+The runit integration tests cover:
 - Service lifecycle (start, stop, restart)
 - Signal handling (TERM, HUP, etc.)
 - Status monitoring and state transitions
@@ -306,7 +373,7 @@ Integration tests cover:
 
 ## Performance
 
-Benchmarks on Apple M3 Pro:
+Benchmarks on Apple M3 Pro (2025-09-08):
 
 ```
 BenchmarkStatusDecode-12         21870621    47.61 ns/op    24 B/op    1 allocs/op
@@ -328,12 +395,13 @@ See the `examples/` directory for complete examples:
 - `examples/basic/` - Simple service control
 - `examples/watch/` - Real-time status monitoring
 - `examples/manager/` - Bulk service operations
+- `examples/compat/` - Using with daemontools and s6
 - `examples/devtree/` - Development environment setup
 
 ## Requirements
 
 - Go 1.21+
-- runit or daemontools-compatible supervisor
+- [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervisor.
 - Linux or macOS
 
 ## License
