@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/google/renameio/v2"
 )
 
 // FuzzClientOperations tests various client operations with random inputs
@@ -140,7 +142,7 @@ func FuzzStatusParsing(f *testing.F) {
 		}
 
 		statusPath := filepath.Join(superviseDir, "status")
-		if err := os.WriteFile(statusPath, statusData, 0o644); err != nil {
+		if err := renameio.WriteFile(statusPath, statusData, 0o644); err != nil {
 			t.Fatal(err)
 		}
 

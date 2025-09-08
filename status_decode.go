@@ -93,8 +93,8 @@ type Status struct {
 	Uptime time.Duration
 	// Flags contains service configuration flags
 	Flags Flags
-	// Raw contains the original 20-byte status record
-	Raw []byte
+	// Raw contains the original 20-byte status record as an array (stack allocated)
+	Raw [StatusFileSize]byte
 }
 
 // decodeStatus decodes a 20-byte runit/daemontools status record.
@@ -113,8 +113,7 @@ func decodeStatus(data []byte) (Status, error) {
 	}
 
 	var st Status
-	st.Raw = make([]byte, StatusFileSize)
-	copy(st.Raw, data)
+	copy(st.Raw[:], data)
 
 	// Extract binary fields from the status file
 	extractStatusFields(&st, data)
@@ -191,11 +190,15 @@ func determineState(pid int, flags Flags, data []byte) State {
 	switch {
 	case !isRunning && flags.WantDown:
 		return StateDown
-	case !isRunning && flags.WantUp:
+	case !isRunning && flags.WantUp && !isFinishing:
 		return StateCrashed
+	case !isRunning && isFinishing:
+		// Finish script is running (main process has exited)
+		return StateFinishing
 	case isRunning && isPaused:
 		return StatePaused
 	case isRunning && isFinishing:
+		// This shouldn't normally happen, but handle it
 		return StateFinishing
 	case isRunning && flags.WantDown:
 		return StateStopping

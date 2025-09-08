@@ -100,8 +100,19 @@ func TestServiceConfigs(t *testing.T) {
 	}
 }
 
-func TestDaemontoolsServiceBuilder(t *testing.T) {
-	builder := DaemontoolsServiceBuilder("test", "/tmp/services")
+func TestServiceBuilderRunit(t *testing.T) {
+	builder := ServiceBuilderRunit("test", "/tmp/services")
+
+	if builder.ChpstPath != "chpst" {
+		t.Errorf("ChpstPath = %v, want chpst", builder.ChpstPath)
+	}
+	if builder.SvlogdPath != "svlogd" {
+		t.Errorf("SvlogdPath = %v, want svlogd", builder.SvlogdPath)
+	}
+}
+
+func TestServiceBuilderDaemontools(t *testing.T) {
+	builder := ServiceBuilderDaemontools("test", "/tmp/services")
 
 	if builder.ChpstPath != "setuidgid" {
 		t.Errorf("ChpstPath = %v, want setuidgid", builder.ChpstPath)
@@ -111,8 +122,8 @@ func TestDaemontoolsServiceBuilder(t *testing.T) {
 	}
 }
 
-func TestS6ServiceBuilder(t *testing.T) {
-	builder := S6ServiceBuilder("test", "/tmp/services")
+func TestServiceBuilderS6(t *testing.T) {
+	builder := ServiceBuilderS6("test", "/tmp/services")
 
 	if builder.ChpstPath != "s6-setuidgid" {
 		t.Errorf("ChpstPath = %v, want s6-setuidgid", builder.ChpstPath)

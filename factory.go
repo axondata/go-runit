@@ -152,13 +152,18 @@ func (c *ServiceConfig) IsOperationSupported(op Operation) bool {
 	return ok
 }
 
-// DaemontoolsServiceBuilder creates a service builder configured for daemontools
-func DaemontoolsServiceBuilder(name, dir string) *ServiceBuilder {
+// ServiceBuilderRunit creates a service builder configured for runit
+func ServiceBuilderRunit(name, dir string) *ServiceBuilder {
+	return NewServiceBuilderWithConfig(name, dir, RunitConfig())
+}
+
+// ServiceBuilderDaemontools creates a service builder configured for daemontools
+func ServiceBuilderDaemontools(name, dir string) *ServiceBuilder {
 	return NewServiceBuilderWithConfig(name, dir, DaemontoolsConfig())
 }
 
-// S6ServiceBuilder creates a service builder configured for s6
-func S6ServiceBuilder(name, dir string) *ServiceBuilder {
+// ServiceBuilderS6 creates a service builder configured for s6
+func ServiceBuilderS6(name, dir string) *ServiceBuilder {
 	return NewServiceBuilderWithConfig(name, dir, S6Config())
 }
 

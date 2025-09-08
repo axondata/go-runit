@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/google/renameio/v2"
 )
 
 func TestOperationValidation(t *testing.T) {
@@ -24,7 +26,7 @@ func TestOperationValidation(t *testing.T) {
 
 	// Create a control FIFO
 	controlPath := filepath.Join(superviseDir, "control")
-	if err := os.WriteFile(controlPath, []byte{}, 0o644); err != nil {
+	if err := renameio.WriteFile(controlPath, []byte{}, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
