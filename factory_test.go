@@ -19,7 +19,7 @@ func TestServiceConfigs(t *testing.T) {
 	}{
 		{
 			name:   "runit",
-			config: RunitConfig(),
+			config: ConfigRunit(),
 			want: struct {
 				serviceDir string
 				chpst      string
@@ -38,7 +38,7 @@ func TestServiceConfigs(t *testing.T) {
 		},
 		{
 			name:   "daemontools",
-			config: DaemontoolsConfig(),
+			config: ConfigDaemontools(),
 			want: struct {
 				serviceDir string
 				chpst      string
@@ -57,7 +57,7 @@ func TestServiceConfigs(t *testing.T) {
 		},
 		{
 			name:   "s6",
-			config: S6Config(),
+			config: ConfigS6(),
 			want: struct {
 				serviceDir string
 				chpst      string
@@ -102,43 +102,46 @@ func TestServiceConfigs(t *testing.T) {
 
 func TestServiceBuilderRunit(t *testing.T) {
 	builder := ServiceBuilderRunit("test", "/tmp/services")
+	config := builder.Config()
 
-	if builder.ChpstPath != "chpst" {
-		t.Errorf("ChpstPath = %v, want chpst", builder.ChpstPath)
+	if config.ChpstPath != "chpst" {
+		t.Errorf("ChpstPath = %v, want chpst", config.ChpstPath)
 	}
-	if builder.SvlogdPath != "svlogd" {
-		t.Errorf("SvlogdPath = %v, want svlogd", builder.SvlogdPath)
+	if config.SvlogdPath != "svlogd" {
+		t.Errorf("SvlogdPath = %v, want svlogd", config.SvlogdPath)
 	}
 }
 
 func TestServiceBuilderDaemontools(t *testing.T) {
 	builder := ServiceBuilderDaemontools("test", "/tmp/services")
+	config := builder.Config()
 
-	if builder.ChpstPath != "setuidgid" {
-		t.Errorf("ChpstPath = %v, want setuidgid", builder.ChpstPath)
+	if config.ChpstPath != "setuidgid" {
+		t.Errorf("ChpstPath = %v, want setuidgid", config.ChpstPath)
 	}
-	if builder.SvlogdPath != "multilog" {
-		t.Errorf("SvlogdPath = %v, want multilog", builder.SvlogdPath)
+	if config.SvlogdPath != "multilog" {
+		t.Errorf("SvlogdPath = %v, want multilog", config.SvlogdPath)
 	}
 }
 
 func TestServiceBuilderS6(t *testing.T) {
 	builder := ServiceBuilderS6("test", "/tmp/services")
+	config := builder.Config()
 
-	if builder.ChpstPath != "s6-setuidgid" {
-		t.Errorf("ChpstPath = %v, want s6-setuidgid", builder.ChpstPath)
+	if config.ChpstPath != "s6-setuidgid" {
+		t.Errorf("ChpstPath = %v, want s6-setuidgid", config.ChpstPath)
 	}
-	if builder.SvlogdPath != "s6-log" {
-		t.Errorf("SvlogdPath = %v, want s6-log", builder.SvlogdPath)
+	if config.SvlogdPath != "s6-log" {
+		t.Errorf("SvlogdPath = %v, want s6-log", config.SvlogdPath)
 	}
 }
 
 func TestNewClientWithConfig(t *testing.T) {
 	// Test that we can create clients with different configs
 	configs := []*ServiceConfig{
-		RunitConfig(),
-		DaemontoolsConfig(),
-		S6Config(),
+		ConfigRunit(),
+		ConfigDaemontools(),
+		ConfigS6(),
 	}
 
 	for _, config := range configs {

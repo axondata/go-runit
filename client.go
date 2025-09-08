@@ -250,6 +250,36 @@ func (c *Client) Cont(ctx context.Context) error {
 	return c.send(ctx, OpCont)
 }
 
+// USR1 sends SIGUSR1 to the service process
+func (c *Client) USR1(ctx context.Context) error {
+	return c.send(ctx, OpUSR1)
+}
+
+// USR2 sends SIGUSR2 to the service process
+func (c *Client) USR2(ctx context.Context) error {
+	return c.send(ctx, OpUSR2)
+}
+
+// Restart restarts the service by sending Down then Up
+func (c *Client) Restart(ctx context.Context) error {
+	if err := c.Down(ctx); err != nil {
+		return err
+	}
+	// Small delay to ensure the service has stopped
+	time.Sleep(100 * time.Millisecond)
+	return c.Up(ctx)
+}
+
+// Start is an alias for Up
+func (c *Client) Start(ctx context.Context) error {
+	return c.Up(ctx)
+}
+
+// Stop is an alias for Down
+func (c *Client) Stop(ctx context.Context) error {
+	return c.Down(ctx)
+}
+
 // ExitSupervise terminates the supervise process for this service
 func (c *Client) ExitSupervise(ctx context.Context) error {
 	return c.send(ctx, OpExit)

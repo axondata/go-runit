@@ -31,11 +31,11 @@ func run(system, service, action string, timeout time.Duration) error {
 	var config *runit.ServiceConfig
 	switch system {
 	case "runit":
-		config = runit.RunitConfig()
+		config = runit.ConfigRunit()
 	case "daemontools":
-		config = runit.DaemontoolsConfig()
+		config = runit.ConfigDaemontools()
 	case "s6":
-		config = runit.S6Config()
+		config = runit.ConfigS6()
 	default:
 		return fmt.Errorf("unknown system: %s", system)
 	}

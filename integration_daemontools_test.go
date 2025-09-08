@@ -16,7 +16,7 @@ import (
 	"github.com/axondata/go-runit"
 )
 
-func TestDaemontoolsIntegration(t *testing.T) {
+func TestIntegrationDaemontools(t *testing.T) {
 	if _, err := exec.LookPath("svscan"); err != nil {
 		t.Skip("daemontools not installed, skipping integration tests")
 	}
@@ -27,7 +27,7 @@ func TestDaemontoolsIntegration(t *testing.T) {
 		serviceDir := filepath.Join(tmpDir, "test-service")
 
 		// Create service with daemontools config
-		config := runit.DaemontoolsConfig()
+		config := runit.ConfigDaemontools()
 
 		// Note: This is a placeholder test
 		// Real daemontools integration would need:

@@ -1,4 +1,4 @@
-.PHONY: all test coverage lint bench clean install help release goimports
+.PHONY: all test coverage lint bench clean install help release goimports install-tools install-golangci-lint
 
 # Default target
 all: test lint
@@ -37,7 +37,7 @@ coverage-all:
 	@go tool cover -func=coverage_all.out | grep total
 
 # Run linter
-lint:
+lint: install-tools
 	golangci-lint run ./...
 
 # Run benchmarks
@@ -89,8 +89,36 @@ test-integration-optional:
 	@echo "Running integration tests (if runit is installed)..."
 	@go test -tags=integration_runit -race ./... 2>/dev/null || echo "Skipping integration tests (runit not installed or tests failed)"
 
+# Install development tools
+install-tools:
+	@echo "Installing development tools..."
+	@which goimports > /dev/null 2>&1 || (echo "Installing goimports..." && go install golang.org/x/tools/cmd/goimports@latest)
+	@which golangci-lint > /dev/null 2>&1 || $(MAKE) install-golangci-lint
+	@echo "Development tools installed"
+
+# Install golangci-lint based on OS
+install-golangci-lint:
+	@echo "Installing golangci-lint..."
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		echo "Installing golangci-lint via Homebrew..."; \
+		brew install golangci-lint; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		echo "Installing golangci-lint for Linux..."; \
+		GOLANGCI_LINT_VERSION=$$(curl -s "https://api.github.com/repos/golangci/golangci-lint/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+') && \
+		wget -qO golangci-lint.tar.gz https://github.com/golangci/golangci-lint/releases/latest/download/golangci-lint-$$GOLANGCI_LINT_VERSION-linux-amd64.tar.gz && \
+		mkdir -p golangci-lint-temp && \
+		tar xf golangci-lint.tar.gz --strip-components=1 -C golangci-lint-temp && \
+		sudo mv golangci-lint-temp/golangci-lint /usr/local/bin && \
+		rm -rf golangci-lint.tar.gz golangci-lint-temp; \
+	else \
+		echo "Unsupported OS. Please install golangci-lint manually."; \
+		echo "Visit: https://golangci-lint.run/usage/install/"; \
+		exit 1; \
+	fi
+	@echo "golangci-lint installed successfully"
+
 # Fix import grouping with goimports
-goimports:
+goimports: install-tools
 	@echo "Fixing import grouping..."
 	goimports -local github.com/axondata -w .
 	@echo "Import grouping fixed"
@@ -138,6 +166,7 @@ help:
 	@echo "  clean                        - Clean build artifacts"
 	@echo "  fmt                          - Format code with go fmt and goimports"
 	@echo "  goimports                    - Fix import grouping with local packages"
+	@echo "  install-tools                - Install development tools (goimports, etc.)"
 	@echo "  deps                         - Update dependencies"
 	@echo "  vulncheck                    - Check for vulnerabilities"
 	@echo "  release                      - Run all release checks"

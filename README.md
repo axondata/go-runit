@@ -239,19 +239,19 @@ This library works with any daemontools-compatible supervision system, including
 - **daemontools** - Compatible except for `Once()` and `Quit()` operations
 - **s6** - Full compatibility with all operations
 
-The library provides factory functions for each system (see [compatibility functions](https://pkg.go.dev/github.com/axondata/go-runit#RunitConfig)):
+The library provides factory functions for each system (see [compatibility functions](https://pkg.go.dev/github.com/axondata/go-runit#ConfigRunit)):
 
 ```go
 // For runit
-config := runit.RunitConfig()
+config := runit.ConfigRunit()
 client, err := runit.NewClientWithConfig("/etc/service/myapp", config)
 
 // For daemontools
-config := runit.DaemontoolsConfig()
+config := runit.ConfigDaemontools()
 client, err := runit.NewClientWithConfig("/service/myapp", config)
 
 // For s6
-config := runit.S6Config()
+config := runit.ConfigS6()
 client, err := runit.NewClientWithConfig("/run/service/myapp", config)
 
 // Service builders for each system

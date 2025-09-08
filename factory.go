@@ -12,6 +12,8 @@ const (
 	ServiceTypeDaemontools
 	// ServiceTypeS6 represents s6 supervision
 	ServiceTypeS6
+	// ServiceTypeSystemd represents systemd supervision
+	ServiceTypeSystemd
 )
 
 // ServiceType string constants
@@ -20,6 +22,7 @@ const (
 	serviceTypeRunitStr       = "runit"
 	serviceTypeDaemontoolsStr = "daemontools"
 	serviceTypeS6Str          = "s6"
+	serviceTypeSystemdStr     = "systemd"
 )
 
 // ServiceConfig contains configuration for different supervision systems
@@ -38,54 +41,6 @@ type ServiceConfig struct {
 	SupportedOps map[Operation]struct{}
 }
 
-// RunitConfig returns the default configuration for runit
-//
-//nolint:revive // Clear naming for multiple config types
-func RunitConfig() *ServiceConfig {
-	return &ServiceConfig{
-		Type:         ServiceTypeRunit,
-		ServiceDir:   "/etc/service",
-		ChpstPath:    "chpst",
-		LoggerPath:   "svlogd",
-		RunsvdirPath: "runsvdir",
-		SupportedOps: allOperations(),
-	}
-}
-
-// DaemontoolsConfig returns the default configuration for daemontools
-//
-//nolint:revive // Clear naming for multiple config types
-func DaemontoolsConfig() *ServiceConfig {
-	config := &ServiceConfig{
-		Type:         ServiceTypeDaemontools,
-		ServiceDir:   "/service",
-		ChpstPath:    "setuidgid", // or envuidgid
-		LoggerPath:   "multilog",
-		RunsvdirPath: "svscan",
-		SupportedOps: allOperations(),
-	}
-
-	// Daemontools doesn't support these operations
-	delete(config.SupportedOps, OpOnce) // No 'o' command
-	delete(config.SupportedOps, OpQuit) // No 'q' command
-
-	return config
-}
-
-// S6Config returns the default configuration for s6
-//
-//nolint:revive // Clear naming for multiple config types
-func S6Config() *ServiceConfig {
-	return &ServiceConfig{
-		Type:         ServiceTypeS6,
-		ServiceDir:   "/run/service", // Common s6 location
-		ChpstPath:    "s6-setuidgid",
-		LoggerPath:   "s6-log",
-		RunsvdirPath: "s6-svscan",
-		SupportedOps: allOperations(),
-	}
-}
-
 // allOperations returns a set with all operations enabled
 func allOperations() map[Operation]struct{} {
 	return map[Operation]struct{}{
@@ -97,6 +52,8 @@ func allOperations() map[Operation]struct{} {
 		OpHUP:       {},
 		OpAlarm:     {},
 		OpQuit:      {},
+		OpUSR1:      {},
+		OpUSR2:      {},
 		OpKill:      {},
 		OpPause:     {},
 		OpCont:      {},
@@ -130,10 +87,10 @@ func NewServiceBuilderWithConfig(name, dir string, config *ServiceConfig) *Servi
 
 	// Set paths based on config
 	if config.ChpstPath != "" {
-		builder.ChpstPath = config.ChpstPath
+		builder.config.ChpstPath = config.ChpstPath
 	}
 	if config.LoggerPath != "" {
-		builder.SvlogdPath = config.LoggerPath
+		builder.config.SvlogdPath = config.LoggerPath
 	}
 
 	// For s6, we might need to adjust the service structure slightly
@@ -152,21 +109,6 @@ func (c *ServiceConfig) IsOperationSupported(op Operation) bool {
 	return ok
 }
 
-// ServiceBuilderRunit creates a service builder configured for runit
-func ServiceBuilderRunit(name, dir string) *ServiceBuilder {
-	return NewServiceBuilderWithConfig(name, dir, RunitConfig())
-}
-
-// ServiceBuilderDaemontools creates a service builder configured for daemontools
-func ServiceBuilderDaemontools(name, dir string) *ServiceBuilder {
-	return NewServiceBuilderWithConfig(name, dir, DaemontoolsConfig())
-}
-
-// ServiceBuilderS6 creates a service builder configured for s6
-func ServiceBuilderS6(name, dir string) *ServiceBuilder {
-	return NewServiceBuilderWithConfig(name, dir, S6Config())
-}
-
 // String returns the string representation of ServiceType
 func (st ServiceType) String() string {
 	switch st {
@@ -176,6 +118,8 @@ func (st ServiceType) String() string {
 		return serviceTypeDaemontoolsStr
 	case ServiceTypeS6:
 		return serviceTypeS6Str
+	case ServiceTypeSystemd:
+		return serviceTypeSystemdStr
 	case ServiceTypeUnknown:
 		fallthrough
 	default:

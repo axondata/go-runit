@@ -16,7 +16,7 @@ import (
 	"github.com/axondata/go-runit"
 )
 
-func TestS6Integration(t *testing.T) {
+func TestIntegrationS6(t *testing.T) {
 	if _, err := exec.LookPath("s6-svscan"); err != nil {
 		t.Skip("s6 not installed, skipping integration tests")
 	}
@@ -27,7 +27,7 @@ func TestS6Integration(t *testing.T) {
 		serviceDir := filepath.Join(tmpDir, "test-service")
 
 		// Create service with s6 config
-		config := runit.S6Config()
+		config := runit.ConfigS6()
 
 		// Note: This is a placeholder test
 		// Real s6 integration would need:

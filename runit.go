@@ -98,10 +98,24 @@ const (
 	OpPause
 	// OpCont sends SIGCONT to the service
 	OpCont
+	// OpUSR1 sends SIGUSR1 to the service
+	OpUSR1
+	// OpUSR2 sends SIGUSR2 to the service
+	OpUSR2
 	// OpExit terminates the supervise process
 	OpExit
 	// OpStatus represents a status query operation
 	OpStatus
+)
+
+// Operation aliases for common commands
+const (
+	// OpStart is an alias for OpUp
+	OpStart = OpUp
+	// OpStop is an alias for OpDown
+	OpStop = OpDown
+	// OpRestart represents a restart operation (handled at client level)
+	OpRestart Operation = iota + 100
 )
 
 // Operation string constants
@@ -118,8 +132,11 @@ const (
 	opKillStr      = "kill"
 	opPauseStr     = "pause"
 	opContStr      = "cont"
+	opUSR1Str      = "usr1"
+	opUSR2Str      = "usr2"
 	opExitStr      = "exit"
 	opStatusStr    = "status"
+	opRestartStr   = "restart"
 )
 
 // String returns the string representation of an Operation
@@ -147,10 +164,16 @@ func (op Operation) String() string {
 		return opPauseStr
 	case OpCont:
 		return opContStr
+	case OpUSR1:
+		return opUSR1Str
+	case OpUSR2:
+		return opUSR2Str
 	case OpExit:
 		return opExitStr
 	case OpStatus:
 		return opStatusStr
+	case OpRestart:
+		return opRestartStr
 	default:
 		return opUnknownStr
 	}
@@ -181,6 +204,10 @@ func (op Operation) Byte() byte {
 		return 'p'
 	case OpCont:
 		return 'c'
+	case OpUSR1:
+		return '1'
+	case OpUSR2:
+		return '2'
 	case OpExit:
 		return 'x'
 	default:
