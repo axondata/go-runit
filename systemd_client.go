@@ -30,6 +30,9 @@ type ClientSystemd struct {
 
 	// Timeout for systemctl operations
 	Timeout time.Duration
+
+	// WatchInterval is the polling interval for Watch when other methods unavailable
+	WatchInterval time.Duration
 }
 
 // NewClientSystemd creates a new ClientSystemd for the specified service
@@ -40,6 +43,7 @@ func NewClientSystemd(serviceName string) *ClientSystemd {
 		SudoCommand:   "sudo",
 		SystemctlPath: "systemctl",
 		Timeout:       10 * time.Second,
+		WatchInterval: 1 * time.Second,
 	}
 }
 
@@ -84,16 +88,26 @@ func (c *ClientSystemd) execSystemctl(ctx context.Context, args ...string) (stri
 	return stdout.String(), nil
 }
 
-// Start starts the service (equivalent to runit Up/Start)
-func (c *ClientSystemd) Start(ctx context.Context) error {
+// Up starts the service (sets want up)
+func (c *ClientSystemd) Up(ctx context.Context) error {
 	_, err := c.execSystemctl(ctx, "start")
 	return err
 }
 
-// Stop stops the service (equivalent to runit Down/Stop)
-func (c *ClientSystemd) Stop(ctx context.Context) error {
+// Start starts the service (alias for Up)
+func (c *ClientSystemd) Start(ctx context.Context) error {
+	return c.Up(ctx)
+}
+
+// Down stops the service (sets want down)
+func (c *ClientSystemd) Down(ctx context.Context) error {
 	_, err := c.execSystemctl(ctx, "stop")
 	return err
+}
+
+// Stop stops the service (alias for Down)
+func (c *ClientSystemd) Stop(ctx context.Context) error {
+	return c.Down(ctx)
 }
 
 // Restart restarts the service
@@ -102,10 +116,20 @@ func (c *ClientSystemd) Restart(ctx context.Context) error {
 	return err
 }
 
-// Reload sends SIGHUP to the service (equivalent to runit HUP)
+// Reload attempts to reload the service using systemctl reload.
+// This uses the service's ExecReload= configuration if defined.
+// If the service doesn't support reload, this will return an error.
+// Note: This is NOT the same as sending SIGHUP - use HUP() for that.
 func (c *ClientSystemd) Reload(ctx context.Context) error {
 	_, err := c.execSystemctl(ctx, "reload")
 	return err
+}
+
+// HUP sends SIGHUP directly to the service's main process.
+// This bypasses systemd's reload mechanism and sends the signal directly.
+// For services with ExecReload= configured, consider using Reload() instead.
+func (c *ClientSystemd) HUP(ctx context.Context) error {
+	return c.signalMainPID(ctx, "HUP")
 }
 
 // Kill sends SIGKILL to the service's main process
@@ -135,8 +159,8 @@ func (c *ClientSystemd) USR2(ctx context.Context) error {
 	return c.Signal(ctx, "USR2")
 }
 
-// Status returns the status of the service
-func (c *ClientSystemd) Status(ctx context.Context) (*StatusSystemd, error) {
+// StatusSystemd returns the systemd-specific status of the service
+func (c *ClientSystemd) StatusSystemd(ctx context.Context) (*StatusSystemd, error) {
 	// Get basic status
 	output, err := c.execSystemctl(ctx, "show", "--no-page")
 	if err != nil {
@@ -195,7 +219,8 @@ func (c *ClientSystemd) IsRunning(ctx context.Context) (bool, error) {
 	if err != nil {
 		// systemctl returns exit code 3 when service is not active
 		// This is not really an error, just a status
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 3 {
+		// Check if the error message contains "exit status 3"
+		if strings.Contains(err.Error(), "exit status 3") {
 			return false, nil
 		}
 		return false, err
@@ -257,25 +282,30 @@ func (s *StatusSystemd) String() string {
 // MapToStatus converts StatusSystemd to runit Status for compatibility
 func (s *StatusSystemd) MapToStatus() *Status {
 	status := &Status{
-		Running: s.Running,
-		Pid:     s.MainPID,
+		PID: s.MainPID,
 	}
 
 	if s.Running && !s.StartTime.IsZero() {
-		status.Start = s.StartTime
-		status.Uptime = int64(s.Uptime.Seconds())
+		status.Since = s.StartTime
+		status.Uptime = s.Uptime
 	}
 
 	// Map systemd states to runit-like states
 	switch s.ActiveState {
 	case "active":
 		if s.SubState == "running" {
-			status.State = StateRun
+			status.State = StateRunning
 		}
 	case "inactive":
 		status.State = StateDown
+		status.Flags.WantDown = true
 	case "failed":
-		status.State = StateFinish
+		status.State = StateDown
+	}
+
+	// Set WantUp flag based on running state
+	if s.Running {
+		status.Flags.WantUp = true
 	}
 
 	return status
@@ -284,9 +314,9 @@ func (s *StatusSystemd) MapToStatus() *Status {
 // SendOperation maps runit operations to systemd commands
 func (c *ClientSystemd) SendOperation(ctx context.Context, op Operation) error {
 	switch op {
-	case OpUp, OpStart:
+	case OpUp: // OpStart is an alias for OpUp
 		return c.Start(ctx)
-	case OpDown, OpStop:
+	case OpDown: // OpStop is an alias for OpDown
 		return c.Stop(ctx)
 	case OpRestart:
 		return c.Restart(ctx)
@@ -415,7 +445,7 @@ func (c *ClientSystemd) runOnce(ctx context.Context) error {
 
 	// Run the command once using systemd-run
 	// --uid, --gid, --setenv can be extracted from the service if needed
-	runArgs := []string{"systemd-run", "--scope", "--uid=" + os.Getenv("USER")}
+	runArgs := []string{"systemd-run", "--no-block", "--uid=" + os.Getenv("USER")}
 
 	// Add the command
 	// Split execStart properly (this is simplified, may need shell parsing)
@@ -450,7 +480,7 @@ func (c *ClientSystemd) WaitForState(ctx context.Context, targetState string, ti
 				return fmt.Errorf("timeout waiting for state %s", targetState)
 			}
 
-			status, err := c.Status(ctx)
+			status, err := c.StatusSystemd(ctx)
 			if err != nil {
 				continue // Keep trying
 			}
@@ -461,3 +491,113 @@ func (c *ClientSystemd) WaitForState(ctx context.Context, targetState string, ti
 		}
 	}
 }
+
+// Status returns the status of the service in runit format for interface compatibility
+func (c *ClientSystemd) Status(ctx context.Context) (Status, error) {
+	systemdStatus, err := c.StatusSystemd(ctx)
+	if err != nil {
+		return Status{}, err
+	}
+	return *systemdStatus.MapToStatus(), nil
+}
+
+// Once starts the service once (does not restart if it exits)
+func (c *ClientSystemd) Once(ctx context.Context) error {
+	return c.runOnce(ctx)
+}
+
+// Pause sends SIGSTOP to the service process
+func (c *ClientSystemd) Pause(ctx context.Context) error {
+	return c.signalMainPID(ctx, "STOP")
+}
+
+// Continue sends SIGCONT to the service process
+func (c *ClientSystemd) Continue(ctx context.Context) error {
+	return c.signalMainPID(ctx, "CONT")
+}
+
+// Interrupt sends SIGINT to the service process
+func (c *ClientSystemd) Interrupt(ctx context.Context) error {
+	return c.signalMainPID(ctx, "INT")
+}
+
+// Alarm sends SIGALRM to the service process
+func (c *ClientSystemd) Alarm(ctx context.Context) error {
+	return c.signalMainPID(ctx, "ALRM")
+}
+
+// Quit sends SIGQUIT to the service process
+func (c *ClientSystemd) Quit(ctx context.Context) error {
+	return c.signalMainPID(ctx, "QUIT")
+}
+
+// ExitSupervise stops and disables the service (no direct systemd equivalent)
+func (c *ClientSystemd) ExitSupervise(ctx context.Context) error {
+	if err := c.Stop(ctx); err != nil {
+		return err
+	}
+	return c.Disable(ctx)
+}
+
+// Watch monitors the systemd service for state changes
+func (c *ClientSystemd) Watch(ctx context.Context) (<-chan WatchEvent, WatchCleanupFunc, error) {
+	// For systemd, we poll the status periodically since there's no file to watch
+	ch := make(chan WatchEvent, 10)
+
+	ticker := time.NewTicker(c.WatchInterval)
+	done := make(chan struct{})
+
+	var lastState string
+
+	stop := func() error {
+		close(done)
+		ticker.Stop()
+		close(ch)
+		return nil
+	}
+
+	go func() {
+		defer ticker.Stop()
+		defer close(ch)
+
+		// Get initial status
+		if status, err := c.Status(ctx); err == nil {
+			lastState = status.State.String()
+			ch <- WatchEvent{Status: status}
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case <-ticker.C:
+				status, err := c.Status(ctx)
+				if err != nil {
+					select {
+					case ch <- WatchEvent{Err: err}:
+					case <-ctx.Done():
+						return
+					}
+					continue
+				}
+
+				currentState := status.State.String()
+				if currentState != lastState {
+					lastState = currentState
+					select {
+					case ch <- WatchEvent{Status: status}:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	return ch, stop, nil
+}
+
+// Ensure ClientSystemd implements ServiceClient
+var _ ServiceClient = (*ClientSystemd)(nil)

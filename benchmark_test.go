@@ -29,7 +29,7 @@ func BenchmarkStatusDecode(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		_, err := decodeStatus(data)
+		_, err := decodeStatusRunit(data)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func BenchmarkStatusDecodeParallel(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, err := decodeStatus(data)
+			_, err := decodeStatusRunit(data)
 			if err != nil {
 				b.Fatal(err)
 			}

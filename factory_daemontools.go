@@ -1,8 +1,6 @@
 package runit
 
 // ConfigDaemontools returns the default configuration for daemontools
-//
-//nolint:revive // Clear naming for multiple config types
 func ConfigDaemontools() *ServiceConfig {
 	config := &ServiceConfig{
 		Type:         ServiceTypeDaemontools,

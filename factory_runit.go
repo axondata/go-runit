@@ -1,8 +1,6 @@
 package runit
 
 // ConfigRunit returns the default configuration for runit
-//
-//nolint:revive // Clear naming for multiple config types
 func ConfigRunit() *ServiceConfig {
 	return &ServiceConfig{
 		Type:         ServiceTypeRunit,

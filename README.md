@@ -6,18 +6,18 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub release](https://img.shields.io/github/release/axondata/go-runit.svg)](https://github.com/axondata/go-runit/releases)
 
-A Go-native library to control [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervisor.
+A Go-native library for controlling process supervisors including [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), and other [`daemontools`](https://cr.yp.to/daemontools.html)-compatible systems, with an adapter for [`systemd`](https://systemd.io/) on Linux.
 
 ## Features
 
-- **Native control**: Write single-byte commands directly to `supervise/control`
-- **Binary status decoding**: Parses `supervise/status` record
-- **Real-time watching**: Monitor status changes via fsnotify (no polling)
-- **Concurrent operations**: Manage multiple services with worker pools via [`Manager`](https://pkg.go.dev/github.com/axondata/go-runit#Manager)
+- **Native daemontools protocol**: Direct binary control via `supervise/control` and `supervise/status`
+- **systemd adapter**: Unified API for systemd services on Linux
+- **Real-time monitoring**: Status changes via fsnotify (no polling)
+- **Concurrent operations**: Worker pool management via [`Manager`](https://pkg.go.dev/github.com/axondata/go-runit#Manager)
 - **Zero allocations**: Optimized hot paths with stack-based operations
-- **Platform support**: Linux and macOS (darwin)
-- **Dev mode**: Optional unprivileged `runsvdir` trees for development
-- **Compatibility**: Works with [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervision system
+- **Cross-platform**: Linux and macOS (systemd on Linux only)
+- **Development mode**: Unprivileged `runsvdir` trees for testing
+- **Multi-supervisor support**: [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), [`daemontools`](https://cr.yp.to/daemontools.html), and [`systemd`](https://systemd.io/)
 
 ## Installation
 
@@ -260,35 +260,80 @@ dtBuilder := runit.ServiceBuilderDaemontools("myapp", "/service")         // See
 s6Builder := runit.ServiceBuilderS6("myapp", "/run/service")              // See https://pkg.go.dev/github.com/axondata/go-runit#ServiceBuilderS6
 ```
 
+### systemd Adapter (Linux only)
+
+While systemd uses a different architecture than daemontools-family supervisors, this library provides an adapter that offers a consistent API:
+
+```go
+// Create a service builder
+builder := runit.NewServiceBuilder("myapp", "")
+builder.WithCmd([]string{"/usr/bin/myapp", "--config", "/etc/myapp.conf"})
+builder.WithCwd("/var/lib/myapp")
+builder.WithEnv("ENV_VAR", "value")
+builder.WithChpst(func(c *runit.ChpstConfig) {
+    c.User = "myuser"
+    c.LimitMem = 1024*1024*1024  // 1GB
+})
+
+// Generate and install systemd unit file
+systemdBuilder := runit.NewBuilderSystemd(builder)
+if err := systemdBuilder.Build(); err != nil {
+    log.Fatal(err)
+}
+
+// Control the service
+client := runit.NewClientSystemd("myapp")
+if err := client.Start(context.Background()); err != nil {
+    log.Fatal(err)
+}
+
+// Send signals
+client.USR1(ctx)  // Send SIGUSR1 to main process
+client.Term(ctx)  // Send SIGTERM to main process
+```
+
+Key features:
+- Generates native systemd unit files from `ServiceBuilder` configurations
+- Maps process limits and environment variables to systemd directives
+- Translates operations to appropriate systemctl commands
+- Sends signals directly to MainPID for precise control
+- Automatic sudo handling for non-root users
+
 ### Differences between systems
 
-| Feature | runit | daemontools | s6 |
-|---------|-------|-------------|-----|
-| Default path | `/etc/service` | `/service` | `/run/service` |
-| Privilege tool | `chpst` | `setuidgid` | `s6-setuidgid` |
-| Logger | `svlogd` | `multilog` | `s6-log` |
-| Scanner | `runsvdir` | `svscan` | `s6-svscan` |
-| `Once()` support | ✓ | ✗ | ✓ |
-| `Quit()` support | ✓ | ✗ | ✓ |
+| Feature | runit | daemontools | s6 | systemd |
+|---------|-------|-------------|-----|---------|
+| Default path | `/etc/service` | `/service` | `/run/service` | `/etc/systemd/system` |
+| Privilege tool | `chpst` | `setuidgid` | `s6-setuidgid` | Unit directives |
+| Logger | `svlogd` | `multilog` | `s6-log` | `journald` |
+| Scanner | `runsvdir` | `svscan` | `s6-svscan` | `systemd` (PID 1) |
+| Control method | Binary protocol | Binary protocol | Binary protocol | D-Bus/systemctl |
+| `Once()` support | ✓ | ✗ | ✓ | ✓ (via systemd-run) |
+| `Quit()` support | ✓ | ✗ | ✓ | ✓ |
+| `USR1/USR2` support | ✓ | ✓ | ✓ | ✓ |
+| Platform | Unix-like | Unix-like | Unix-like | Linux only |
 
-All three systems use the same binary protocol for `supervise/control` and `supervise/status`, making this library compatible with all of them.
+The daemontools family (runit, daemontools, s6) share a common binary protocol for `supervise/control` and `supervise/status`. The systemd adapter translates the same operations to systemctl commands and generates native unit files from shared service configurations.
 
 ## Control Commands Reference
 
-| Method | Byte | Signal | Description | runit | daemontools | s6 |
-|--------|------|--------|-------------|-------|-------------|-----|
-| `Up()` | `u` | - | Start service (want up) | ✓ | ✓ | ✓ |
-| `Once()` | `o` | - | Run service once | ✓ | ✗ | ✓ |
-| `Down()` | `d` | - | Stop service (want down) | ✓ | ✓ | ✓ |
-| `Term()` | `t` | SIGTERM | Graceful termination | ✓ | ✓ | ✓ |
-| `Interrupt()` | `i` | SIGINT | Interrupt | ✓ | ✓ | ✓ |
-| `HUP()` | `h` | SIGHUP | Reload configuration | ✓ | ✓ | ✓ |
-| `Alarm()` | `a` | SIGALRM | Alarm signal | ✓ | ✓ | ✓ |
-| `Quit()` | `q` | SIGQUIT | Quit with core dump | ✓ | ✗ | ✓ |
-| `Kill()` | `k` | SIGKILL | Force kill | ✓ | ✓ | ✓ |
-| `Pause()` | `p` | SIGSTOP | Pause process | ✓ | ✓ | ✓ |
-| `Cont()` | `c` | SIGCONT | Continue process | ✓ | ✓ | ✓ |
-| `ExitSupervise()` | `x` | - | Terminate supervise | ✓ | ✓ | ✓ |
+| Method | Byte | Signal | Description | runit | daemontools | s6 | systemd |
+|--------|------|--------|-------------|-------|-------------|-----|---------|
+| `Up()` / `Start()` | `u` | - | Start service (want up) | ✓ | ✓ | ✓ | ✓ |
+| `Once()` | `o` | - | Run service once | ✓ | ✗ | ✓ | ✓ |
+| `Down()` / `Stop()` | `d` | - | Stop service (want down) | ✓ | ✓ | ✓ | ✓ |
+| `Restart()` | - | - | Stop then start service | ✓ | ✓ | ✓ | ✓ |
+| `Term()` | `t` | SIGTERM | Graceful termination | ✓ | ✓ | ✓ | ✓ |
+| `Interrupt()` | `i` | SIGINT | Interrupt | ✓ | ✓ | ✓ | ✓ |
+| `HUP()` | `h` | SIGHUP | Reload configuration | ✓ | ✓ | ✓ | ✓ |
+| `Alarm()` | `a` | SIGALRM | Alarm signal | ✓ | ✓ | ✓ | ✓ |
+| `Quit()` | `q` | SIGQUIT | Quit with core dump | ✓ | ✗ | ✓ | ✓ |
+| `USR1()` | `1` | SIGUSR1 | User signal 1 | ✓ | ✓ | ✓ | ✓ |
+| `USR2()` | `2` | SIGUSR2 | User signal 2 | ✓ | ✓ | ✓ | ✓ |
+| `Kill()` | `k` | SIGKILL | Force kill | ✓ | ✓ | ✓ | ✓ |
+| `Pause()` | `p` | SIGSTOP | Pause process | ✓ | ✓ | ✓ | ✓ |
+| `Cont()` | `c` | SIGCONT | Continue process | ✓ | ✓ | ✓ | ✓ |
+| `ExitSupervise()` | `x` | - | Terminate supervise | ✓ | ✓ | ✓ | N/A |
 
 ## Status Binary Format
 

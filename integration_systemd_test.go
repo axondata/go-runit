@@ -1,4 +1,4 @@
-//go:build linux && integration
+//go:build linux
 
 package runit
 
@@ -74,11 +74,11 @@ func TestIntegrationSystemd(t *testing.T) {
 			t.Fatalf("failed to get status: %v", err)
 		}
 
-		if !status.Running {
-			t.Error("status should show running")
+		if status.State != StateRunning {
+			t.Errorf("status should show running, got: %v", status.State)
 		}
-		if status.MainPID == 0 {
-			t.Error("should have a MainPID")
+		if status.PID == 0 {
+			t.Error("should have a PID")
 		}
 	})
 
@@ -151,10 +151,12 @@ func TestIntegrationSystemd(t *testing.T) {
 
 func TestUnitGenerationBuilderSystemd(t *testing.T) {
 	builder := NewServiceBuilder("test-service", "/tmp")
-	builder.WithCmd([]string{"/usr/bin/myapp", "--config", "/etc/myapp.conf"})
+	builder.WithCmd([]string{"/bin/sh", "-c", "echo 'Test service'; sleep 10"})
 	builder.WithCwd("/var/lib/myapp")
-	builder.WithEnv("ENV_VAR", "value")
-	builder.WithEnv("ANOTHER_VAR", "another value")
+	builder.WithEnvMap(map[string]string{
+		"ENV_VAR":     "value",
+		"ANOTHER_VAR": "another value",
+	})
 	builder.WithUmask(0022)
 	builder.WithChpst(func(c *ChpstConfig) {
 		c.User = "myuser"
@@ -191,7 +193,7 @@ func TestUnitGenerationBuilderSystemd(t *testing.T) {
 		"UMask=0022",
 		`Environment="ENV_VAR=value"`,
 		`Environment="ANOTHER_VAR=another value"`,
-		`ExecStart=/usr/bin/myapp --config /etc/myapp.conf`,
+		`ExecStart=/bin/sh -c "echo 'Test service'; sleep 10"`,
 		`ExecStopPost=/usr/bin/cleanup --force`,
 		"SyslogIdentifier=myapp",
 		"[Install]",

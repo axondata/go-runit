@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/google/renameio/v2"
 )
 
 // BuilderSystemd extends ServiceBuilder to generate systemd unit files
@@ -221,7 +223,7 @@ func (b *BuilderSystemd) BuildWithContext(ctx context.Context) error {
 func (b *BuilderSystemd) writeUnitFile(ctx context.Context, path string, content string) error {
 	if !b.UseSudo {
 		// Direct write if we have permissions
-		return os.WriteFile(path, []byte(content), 0644)
+		return renameio.WriteFile(path, []byte(content), 0o644)
 	}
 
 	// Use sudo tee to write the file

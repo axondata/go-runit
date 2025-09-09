@@ -1,15 +1,10 @@
-//go:build integration_daemontools
-// +build integration_daemontools
-
 // Package runit_test provides integration tests for daemontools compatibility.
 // These tests require daemontools to be installed (svscan, supervise, etc.).
-//
-// Run with: go test -tags=integration_daemontools ./...
+// Tests will automatically skip if daemontools tools are not available.
 package runit_test
 
 import (
 	"context"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -17,17 +12,12 @@ import (
 )
 
 func TestIntegrationDaemontools(t *testing.T) {
-	if _, err := exec.LookPath("svscan"); err != nil {
-		t.Skip("daemontools not installed, skipping integration tests")
-	}
+	runit.RequireDaemontools(t)
 
 	t.Run("basic_operations", func(t *testing.T) {
 		// Create a test service directory
 		tmpDir := t.TempDir()
 		serviceDir := filepath.Join(tmpDir, "test-service")
-
-		// Create service with daemontools config
-		config := runit.ConfigDaemontools()
 
 		// Note: This is a placeholder test
 		// Real daemontools integration would need:
@@ -36,7 +26,7 @@ func TestIntegrationDaemontools(t *testing.T) {
 		// 3. Test operations that daemontools supports
 		// 4. Verify that unsupported operations (Once, Quit) fail appropriately
 
-		client, err := runit.NewClientWithConfig(serviceDir, config)
+		client, err := runit.NewClient(serviceDir, runit.ServiceTypeDaemontools)
 		if err == nil {
 			// Test that Once operation is blocked
 			ctx := context.Background()
@@ -48,8 +38,3 @@ func TestIntegrationDaemontools(t *testing.T) {
 	})
 }
 
-func skipIfDaemontoolsNotInstalled(t *testing.T) {
-	if _, err := exec.LookPath("svscan"); err != nil {
-		t.Skip("daemontools not installed")
-	}
-}

@@ -1,5 +1,10 @@
 package runit
 
+import (
+	"fmt"
+	"path/filepath"
+)
+
 // ServiceType represents the type of service supervision system
 type ServiceType int
 
@@ -62,23 +67,23 @@ func allOperations() map[Operation]struct{} {
 	}
 }
 
-// NewClientWithConfig creates a new client with the specified service configuration
-func NewClientWithConfig(serviceDir string, config *ServiceConfig, opts ...Option) (*Client, error) {
-	// Validate that operations used are supported by this service type
-	// This is primarily for documentation since the protocol is identical
-	// The actual client doesn't need changes as daemontools/runit/s6 all use
-	// the same supervise/control and supervise/status format
-
-	// Create client with standard options
-	client, err := New(serviceDir, opts...)
-	if err != nil {
-		return nil, err
+// NewClient creates a ServiceClient based on the detected or specified supervision system
+func NewClient(serviceDir string, serviceType ServiceType) (ServiceClient, error) {
+	switch serviceType {
+	case ServiceTypeRunit:
+		return NewClientRunit(serviceDir)
+	case ServiceTypeDaemontools:
+		return NewClientDaemontools(serviceDir)
+	case ServiceTypeS6:
+		return NewClientS6(serviceDir)
+	case ServiceTypeSystemd:
+		// Systemd uses service names, not directories
+		// Extract service name from path
+		serviceName := filepath.Base(serviceDir)
+		return NewClientSystemd(serviceName), nil
+	default:
+		return nil, fmt.Errorf("unsupported service type: %v", serviceType)
 	}
-
-	// Set the config to enable operation validation
-	client.Config = config
-
-	return client, nil
 }
 
 // NewServiceBuilderWithConfig creates a service builder for the specified supervision system

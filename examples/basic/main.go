@@ -25,7 +25,8 @@ func main() {
 }
 
 func run(service, action string, timeout time.Duration) error {
-	client, err := runit.New(service)
+	// Default to runit for this basic example
+	client, err := runit.NewClientRunit(service)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}

@@ -52,8 +52,19 @@ func run(system, service, action string, timeout time.Duration) error {
 	fmt.Printf("  Scanner: %s\n", config.RunsvdirPath)
 	fmt.Println()
 
-	// Create client with the configuration
-	client, err := runit.NewClientWithConfig(service, config)
+	// Create client based on system type
+	var client runit.ServiceClient
+	var err error
+	switch config.Type {
+	case runit.ServiceTypeRunit:
+		client, err = runit.NewClientRunit(service)
+	case runit.ServiceTypeDaemontools:
+		client, err = runit.NewClientDaemontools(service)
+	case runit.ServiceTypeS6:
+		client, err = runit.NewClientS6(service)
+	default:
+		return fmt.Errorf("unsupported service type: %v", config.Type)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}

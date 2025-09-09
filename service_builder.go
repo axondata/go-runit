@@ -22,7 +22,7 @@ func NewServiceBuilder(name, dir string) *ServiceBuilder {
 		config: &ServiceBuilderConfig{
 			Name:       name,
 			Dir:        dir,
-			Env:        make(map[string]string),
+			Env:        nil,
 			Umask:      DefaultUmask,
 			ChpstPath:  DefaultChpstPath,
 			SvlogdPath: DefaultSvlogdPath,
@@ -55,7 +55,24 @@ func (b *ServiceBuilder) WithUmask(umask fs.FileMode) *ServiceBuilder {
 
 // WithEnv adds an environment variable
 func (b *ServiceBuilder) WithEnv(key, value string) *ServiceBuilder {
+	if b.config.Env == nil {
+		b.config.Env = make(map[string]string)
+	}
 	b.config.Env[key] = value
+	return b
+}
+
+// WithEnvMap adds multiple environment variables from a map
+func (b *ServiceBuilder) WithEnvMap(env map[string]string) *ServiceBuilder {
+	// Ensure the map is initialized (defensive programming)
+	if b.config.Env == nil {
+		b.config.Env = make(map[string]string, len(env))
+	}
+
+	// Add all entries from the provided map
+	for key, value := range env {
+		b.config.Env[key] = value
+	}
 	return b
 }
 
@@ -258,7 +275,15 @@ func (b *ServiceBuilder) buildRunScript() string {
 	cmdParts := make([]string, 0, capacity)
 
 	if len(b.config.Env) > 0 {
-		cmdParts = append(cmdParts, b.config.ChpstPath, "-e", "./env")
+		// Handle environment variables based on the tool being used
+		// s6 uses s6-envdir, while runit/daemontools use chpst/setuidgid with -e flag
+		if b.config.ChpstPath == "s6-setuidgid" || b.config.ChpstPath == "s6-envdir" {
+			// For s6, use s6-envdir without the -e flag
+			cmdParts = append(cmdParts, "s6-envdir", "./env")
+		} else {
+			// For runit and daemontools, use chpst/setuidgid with -e flag
+			cmdParts = append(cmdParts, b.config.ChpstPath, "-e", "./env")
+		}
 	}
 
 	if b.config.Chpst != nil {

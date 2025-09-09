@@ -1,6 +1,3 @@
-//go:build integration || integration_runit
-// +build integration integration_runit
-
 package runit_test
 
 import (
@@ -18,17 +15,9 @@ import (
 
 // TestIntegrationSingleService tests a single runit service lifecycle
 func TestIntegrationSingleService(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	// Check if runit tools are available
-	if _, err := exec.LookPath("runsvdir"); err != nil {
-		t.Skip("runsvdir not found in PATH")
-	}
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
+	runit.RequireTool(t, "runsvdir")
 
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
@@ -77,7 +66,7 @@ exit 0
 	}
 
 	// Create client for the service
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -154,56 +143,12 @@ exit 0
 		}
 		t.Logf("Service stopped: state=%v", status.State)
 	})
-
-	t.Run("Watch", func(t *testing.T) {
-		watchCtx, watchCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer watchCancel()
-
-		events, stop, err := client.Watch(watchCtx)
-		if err != nil {
-			t.Skipf("watch not supported: %v", err)
-			return
-		}
-		defer stop()
-
-		// Start the service to trigger events
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			client.Up(context.Background())
-			time.Sleep(1 * time.Second)
-			client.Down(context.Background())
-		}()
-
-		eventCount := 0
-		for {
-			select {
-			case event := <-events:
-				if event.Err != nil {
-					t.Logf("Watch error: %v", event.Err)
-				} else {
-					eventCount++
-					t.Logf("Watch event %d: state=%v pid=%d",
-						eventCount, event.Status.State, event.Status.PID)
-				}
-			case <-watchCtx.Done():
-				if eventCount == 0 {
-					t.Error("expected at least one watch event")
-				}
-				return
-			}
-		}
-	})
 }
 
 // TestIntegrationServiceWithExitCodes tests services with different exit codes
 func TestIntegrationServiceWithExitCodes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
 
 	testCases := []struct {
 		name     string
@@ -275,7 +220,7 @@ exec sleep 300`,
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			client, err := runit.New(serviceDir)
+			client, err := runit.NewClientRunit(serviceDir)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
@@ -304,13 +249,8 @@ exec sleep 300`,
 
 // TestIntegrationServiceBuilder tests the ServiceBuilder functionality
 func TestIntegrationServiceBuilder(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 
@@ -358,7 +298,7 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}

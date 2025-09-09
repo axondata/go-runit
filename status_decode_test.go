@@ -65,9 +65,9 @@ func TestDecodeStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, err := decodeStatus(tt.data)
+			status, err := decodeStatusRunit(tt.data)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("decodeStatus() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("decodeStatusRunit() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
@@ -88,27 +88,35 @@ type statusOption func(*bytes.Buffer)
 func withTermFlag() statusOption {
 	return func(b *bytes.Buffer) {
 		data := b.Bytes()
-		data[18] = 1
+		if len(data) >= 19 {
+			data[18] = 1 // Set term flag at byte 18
+		}
 	}
 }
 
 func makeStatusData(pid int, want byte, paused byte, running byte, opts ...statusOption) []byte {
-	buf := &bytes.Buffer{}
+	// Create runit format status (20 bytes)
+	statusData := make([]byte, RunitStatusSize)
 
-	const tai64nOffset = 4611686018427387904
 	now := time.Now()
-	tai64nSec := uint64(now.Unix()) + tai64nOffset
-	tai64nNano := uint32(now.Nanosecond())
+	tai64 := uint64(now.Unix()) + TAI64Offset
 
-	_ = binary.Write(buf, binary.BigEndian, tai64nSec)
-	_ = binary.Write(buf, binary.BigEndian, tai64nNano)
-	_ = binary.Write(buf, binary.BigEndian, uint32(pid))
+	// TAI64N timestamp (big-endian)
+	binary.BigEndian.PutUint64(statusData[RunitTAI64Start:RunitTAI64End], tai64)
+	// Nanoseconds (big-endian)
+	binary.BigEndian.PutUint32(statusData[RunitNanoStart:RunitNanoEnd], uint32(now.Nanosecond()))
 
-	buf.WriteByte(paused)
-	buf.WriteByte(want)
-	buf.WriteByte(0)
-	buf.WriteByte(running)
+	// PID (little-endian)
+	binary.LittleEndian.PutUint32(statusData[RunitPIDStart:RunitPIDEnd], uint32(pid))
 
+	// Flags
+	statusData[RunitPausedFlag] = paused // paused flag
+	statusData[RunitWantFlag] = want     // want flag ('u' or 'd')
+	statusData[RunitTermFlag] = 0        // term flag
+	statusData[RunitRunFlag] = running   // run flag (service has process)
+
+	// Apply options
+	buf := bytes.NewBuffer(statusData)
 	for _, opt := range opts {
 		opt(buf)
 	}
@@ -121,7 +129,7 @@ func BenchmarkDecodeStatus(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := decodeStatus(data)
+		_, err := decodeStatusRunit(data)
 		if err != nil {
 			b.Fatal(err)
 		}

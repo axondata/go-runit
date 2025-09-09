@@ -50,7 +50,7 @@ func NewManager(opts ...ManagerOption) *Manager {
 	return m
 }
 
-func (m *Manager) execute(ctx context.Context, services []string, op func(context.Context, *Client) error) error {
+func (m *Manager) execute(ctx context.Context, services []string, op func(context.Context, ServiceClient) error) error {
 	if len(services) == 0 {
 		return nil
 	}
@@ -68,7 +68,8 @@ func (m *Manager) execute(ctx context.Context, services []string, op func(contex
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			client, err := New(svc)
+			// Default to runit for backward compatibility
+			client, err := NewClientRunit(svc)
 			if err != nil {
 				mu.Lock()
 				merr.Add(&OpError{Op: OpUnknown, Path: svc, Err: err})
@@ -97,28 +98,28 @@ func (m *Manager) execute(ctx context.Context, services []string, op func(contex
 
 // Up starts the specified services
 func (m *Manager) Up(ctx context.Context, services ...string) error {
-	return m.execute(ctx, services, func(ctx context.Context, c *Client) error {
+	return m.execute(ctx, services, func(ctx context.Context, c ServiceClient) error {
 		return c.Up(ctx)
 	})
 }
 
 // Down stops the specified services
 func (m *Manager) Down(ctx context.Context, services ...string) error {
-	return m.execute(ctx, services, func(ctx context.Context, c *Client) error {
+	return m.execute(ctx, services, func(ctx context.Context, c ServiceClient) error {
 		return c.Down(ctx)
 	})
 }
 
 // Term sends SIGTERM to the specified services
 func (m *Manager) Term(ctx context.Context, services ...string) error {
-	return m.execute(ctx, services, func(ctx context.Context, c *Client) error {
+	return m.execute(ctx, services, func(ctx context.Context, c ServiceClient) error {
 		return c.Term(ctx)
 	})
 }
 
 // Kill sends SIGKILL to the specified services
 func (m *Manager) Kill(ctx context.Context, services ...string) error {
-	return m.execute(ctx, services, func(ctx context.Context, c *Client) error {
+	return m.execute(ctx, services, func(ctx context.Context, c ServiceClient) error {
 		return c.Kill(ctx)
 	})
 }
@@ -143,7 +144,8 @@ func (m *Manager) Status(ctx context.Context, services ...string) (map[string]St
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			client, err := New(svc)
+			// Default to runit for backward compatibility
+			client, err := NewClientRunit(svc)
 			if err != nil {
 				mu.Lock()
 				merr.Add(&OpError{Op: OpStatus, Path: svc, Err: err})

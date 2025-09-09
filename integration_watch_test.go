@@ -1,5 +1,4 @@
-//go:build (integration || integration_runit) && (linux || darwin)
-// +build integration integration_runit
+//go:build linux || darwin
 // +build linux darwin
 
 package runit_test
@@ -20,13 +19,8 @@ import (
 
 // TestIntegrationWatchFunctionality tests the fsnotify-based watch feature
 func TestIntegrationWatchFunctionality(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "watch-test")
@@ -72,7 +66,7 @@ exit 0`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -166,8 +160,8 @@ exit 0`
 
 	t.Run("WatchDebouncing", func(t *testing.T) {
 		// Test that rapid changes are debounced
-		client2, err := runit.New(serviceDir,
-			runit.WithWatchDebounce(100*time.Millisecond))
+		// Note: We no longer have WithWatchDebounce option
+		client2, err := runit.NewClientRunit(serviceDir)
 		if err != nil {
 			t.Fatalf("failed to create client with custom debounce: %v", err)
 		}
@@ -279,13 +273,8 @@ exit 0`
 
 // TestIntegrationWatchDeduplication tests that identical states are deduplicated
 func TestIntegrationWatchDeduplication(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "dedup-test")
@@ -325,7 +314,7 @@ exec sleep 300`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}

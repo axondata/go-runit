@@ -1,15 +1,10 @@
-//go:build integration_s6
-// +build integration_s6
-
 // Package runit_test provides integration tests for s6 compatibility.
 // These tests require s6 to be installed (s6-svscan, s6-supervise, etc.).
-//
-// Run with: go test -tags=integration_s6 ./...
+// Tests will automatically skip if s6 tools are not available.
 package runit_test
 
 import (
 	"context"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -17,17 +12,12 @@ import (
 )
 
 func TestIntegrationS6(t *testing.T) {
-	if _, err := exec.LookPath("s6-svscan"); err != nil {
-		t.Skip("s6 not installed, skipping integration tests")
-	}
+	runit.RequireS6(t)
 
 	t.Run("basic_operations", func(t *testing.T) {
 		// Create a test service directory
 		tmpDir := t.TempDir()
 		serviceDir := filepath.Join(tmpDir, "test-service")
-
-		// Create service with s6 config
-		config := runit.ConfigS6()
 
 		// Note: This is a placeholder test
 		// Real s6 integration would need:
@@ -36,7 +26,7 @@ func TestIntegrationS6(t *testing.T) {
 		// 3. Test all operations (s6 supports everything)
 		// 4. Verify s6-specific behavior
 
-		client, err := runit.NewClientWithConfig(serviceDir, config)
+		client, err := runit.NewClient(serviceDir, runit.ServiceTypeS6)
 		if err == nil {
 			// Test that all operations are allowed for s6
 			ctx := context.Background()
@@ -49,8 +39,3 @@ func TestIntegrationS6(t *testing.T) {
 	})
 }
 
-func skipIfS6NotInstalled(t *testing.T) {
-	if _, err := exec.LookPath("s6-svscan"); err != nil {
-		t.Skip("s6 not installed")
-	}
-}

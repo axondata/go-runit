@@ -24,7 +24,7 @@ func main() {
 }
 
 func run(service string) error {
-	client, err := runit.New(service)
+	client, err := runit.NewClientRunit(service)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}

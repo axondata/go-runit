@@ -1,6 +1,3 @@
-//go:build integration || integration_runit
-// +build integration integration_runit
-
 package runit_test
 
 import (
@@ -19,13 +16,8 @@ import (
 // TestIntegrationExitCodeDetection verifies that runit properly captures
 // and reflects process exit codes in the service state
 func TestIntegrationExitCodeDetection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireTool(t, "runsv")
 
 	testCases := []struct {
 		name           string
@@ -140,7 +132,7 @@ done`,
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			client, err := runit.New(serviceDir)
+			client, err := runit.NewClientRunit(serviceDir)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
@@ -243,9 +235,7 @@ func TestIntegrationFinishScript(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireTool(t, "runsv")
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "finish-test")
@@ -303,7 +293,7 @@ exit 0`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}

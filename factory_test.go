@@ -148,7 +148,7 @@ func TestNewClientWithConfig(t *testing.T) {
 		t.Run(config.Type.String(), func(t *testing.T) {
 			// This will fail if the service doesn't exist, but that's expected
 			// We're just testing that the factory works
-			_, err := NewClientWithConfig("/nonexistent", config)
+			_, err := NewClient("/nonexistent", config.Type)
 			if err == nil {
 				t.Error("Expected error for nonexistent service")
 			}

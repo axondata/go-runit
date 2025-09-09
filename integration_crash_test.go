@@ -1,6 +1,3 @@
-//go:build integration || integration_runit
-// +build integration integration_runit
-
 package runit_test
 
 import (
@@ -19,13 +16,8 @@ import (
 // TestIntegrationCrashedStateDetection verifies we can detect the crashed state
 // This test uses the 'once' command to prevent automatic restart
 func TestIntegrationCrashedStateDetection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "crash-test")
@@ -68,7 +60,7 @@ exit 1`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -183,13 +175,8 @@ exit 1`
 
 // TestIntegrationRestartBehavior verifies runit's restart behavior
 func TestIntegrationRestartBehavior(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	runit.RequireNotShort(t)
+	runit.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "restart-test")
@@ -241,7 +228,7 @@ exit 1`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := runit.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
