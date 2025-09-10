@@ -6,36 +6,36 @@ all: test lint
 # Run unit tests
 test:
 	@if [ "$$(uname)" = "Linux" ]; then \
-		CGO_ENABLED=1 go test -race ./...; \
+		CGO_ENABLED=1 go test -race $$(go list ./... | grep -v /examples/); \
 	else \
-		go test -race ./...; \
+		go test -race $$(go list ./... | grep -v /examples/); \
 	fi
 
 # Run runit integration tests explicitly
 test-integration-runit:
-	go test -tags=integration_runit -race ./...
+	go test -tags=integration_runit -race $$(go list ./... | grep -v /examples/)
 
 # Run daemontools integration tests (requires daemontools installed)
 test-integration-daemontools:
-	go test -tags=integration_daemontools -race ./...
+	go test -tags=integration_daemontools -race $$(go list ./... | grep -v /examples/)
 
 # Run s6 integration tests (requires s6 installed)
 test-integration-s6:
-	go test -tags=integration_s6 -race ./...
+	go test -tags=integration_s6 -race $$(go list ./... | grep -v /examples/)
 
 # Run all tests
 test-all: test test-integration-runit
 
 # Generate coverage report
 coverage:
-	go test -coverprofile=coverage.out ./...
+	go test -coverprofile=coverage.out $$(go list ./... | grep -v /examples/)
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 	@go tool cover -func=coverage.out | grep total
 
 # Generate coverage with integration tests
 coverage-all:
-	go test -tags=integration_runit -coverprofile=coverage_all.out -covermode=atomic ./...
+	go test -tags=integration_runit -coverprofile=coverage_all.out -covermode=atomic $$(go list ./... | grep -v /examples/)
 	go tool cover -html=coverage_all.out -o coverage_all.html
 	@echo "Full coverage report generated: coverage_all.html"
 	@go tool cover -func=coverage_all.out | grep total
