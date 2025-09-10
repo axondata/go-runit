@@ -34,4 +34,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TAI64N timestamp decoding based on official runit source
 - Compatible with daemontools/runit specification
 
-[1.0.0]: https://github.com/axondata/go-runit/releases/tag/v1.0.0
+[1.0.0]: https://github.com/axondata/go-svcmgr/releases/tag/v1.0.0

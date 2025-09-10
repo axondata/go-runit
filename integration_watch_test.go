@@ -1,7 +1,7 @@
 //go:build linux || darwin
 // +build linux darwin
 
-package runit_test
+package svcmgr_test
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/renameio/v2"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 // TestIntegrationWatchFunctionality tests the fsnotify-based watch feature

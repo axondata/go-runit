@@ -1,6 +1,6 @@
 //go:build !linux
 
-package runit
+package svcmgr
 
 // ConfigSystemd returns an error on non-Linux systems
 //

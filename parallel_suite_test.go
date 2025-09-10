@@ -1,6 +1,6 @@
 // +build linux
 
-package runit
+package svcmgr
 
 import (
 	"context"
@@ -199,7 +199,7 @@ func TestParallelSuiteComparison(t *testing.T) {
 }ubuntu@ip-172-31-62-134:~/src/go-runit$ cat parallel_suite_test.go ; echo
 // +build linux
 
-package runit
+package svcmgr
 
 import (
 	"context"

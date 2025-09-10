@@ -1,14 +1,14 @@
-// Package runit_test provides integration tests for s6 compatibility.
+// Package svcmgr_test provides integration tests for s6 compatibility.
 // These tests require s6 to be installed (s6-svscan, s6-supervise, etc.).
 // Tests will automatically skip if s6 tools are not available.
-package runit_test
+package svcmgr_test
 
 import (
 	"context"
 	"path/filepath"
 	"testing"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func TestIntegrationS6(t *testing.T) {

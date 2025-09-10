@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/axondata/go-runit/internal/unix"
+	"github.com/axondata/go-svcmgr/internal/unix"
 )
 
 // ClientS6 provides control and status operations for an s6 service.

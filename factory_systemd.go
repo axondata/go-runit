@@ -1,6 +1,6 @@
 //go:build linux
 
-package runit
+package svcmgr
 
 // ConfigSystemd returns the default configuration for systemd
 //

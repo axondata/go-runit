@@ -1,4 +1,4 @@
-package runit_test
+package svcmgr_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/renameio/v2"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 // TestIntegrationExitCodeDetection verifies that runit properly captures

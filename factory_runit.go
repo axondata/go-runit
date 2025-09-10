@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 // ConfigRunit returns the default configuration for runit
 func ConfigRunit() *ServiceConfig {

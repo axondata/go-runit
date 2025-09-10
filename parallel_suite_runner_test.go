@@ -1,6 +1,6 @@
 // +build linux
 
-package runit
+package svcmgr
 
 import (
 	"context"

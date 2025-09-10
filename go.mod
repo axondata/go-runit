@@ -1,4 +1,4 @@
-module github.com/axondata/go-runit
+module github.com/axondata/go-svcmgr
 
 go 1.25.0
 
@@ -6,7 +6,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/renameio/v2 v2.0.0
 	github.com/stretchr/testify v1.11.1
-	vawter.tech/stopper v1.0.2
 )
 
 require (

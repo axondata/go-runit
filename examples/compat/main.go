@@ -9,7 +9,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func main() {
@@ -28,14 +28,14 @@ func main() {
 
 func run(system, service, action string, timeout time.Duration) error {
 	// Get the appropriate configuration
-	var config *runit.ServiceConfig
+	var config *svcmgr.ServiceConfig
 	switch system {
 	case "runit":
-		config = runit.ConfigRunit()
+		config = svcmgr.ConfigRunit()
 	case "daemontools":
-		config = runit.ConfigDaemontools()
+		config = svcmgr.ConfigDaemontools()
 	case "s6":
-		config = runit.ConfigS6()
+		config = svcmgr.ConfigS6()
 	default:
 		return fmt.Errorf("unknown system: %s", system)
 	}
@@ -53,15 +53,15 @@ func run(system, service, action string, timeout time.Duration) error {
 	fmt.Println()
 
 	// Create client based on system type
-	var client runit.ServiceClient
+	var client svcmgr.ServiceClient
 	var err error
 	switch config.Type {
-	case runit.ServiceTypeRunit:
-		client, err = runit.NewClientRunit(service)
-	case runit.ServiceTypeDaemontools:
-		client, err = runit.NewClientDaemontools(service)
-	case runit.ServiceTypeS6:
-		client, err = runit.NewClientS6(service)
+	case svcmgr.ServiceTypeRunit:
+		client, err = svcmgr.NewClientRunit(service)
+	case svcmgr.ServiceTypeDaemontools:
+		client, err = svcmgr.NewClientDaemontools(service)
+	case svcmgr.ServiceTypeS6:
+		client, err = svcmgr.NewClientS6(service)
 	default:
 		return fmt.Errorf("unsupported service type: %v", config.Type)
 	}
@@ -74,7 +74,7 @@ func run(system, service, action string, timeout time.Duration) error {
 
 	switch action {
 	case "up":
-		if !config.IsOperationSupported(runit.OpUp) {
+		if !config.IsOperationSupported(svcmgr.OpUp) {
 			return fmt.Errorf("operation 'up' not supported by %s", system)
 		}
 		if err := client.Up(ctx); err != nil {
@@ -83,7 +83,7 @@ func run(system, service, action string, timeout time.Duration) error {
 		fmt.Println("Service started")
 
 	case "down":
-		if !config.IsOperationSupported(runit.OpDown) {
+		if !config.IsOperationSupported(svcmgr.OpDown) {
 			return fmt.Errorf("operation 'down' not supported by %s", system)
 		}
 		if err := client.Down(ctx); err != nil {
@@ -106,9 +106,9 @@ func run(system, service, action string, timeout time.Duration) error {
 
 		// Show which operations are supported
 		fmt.Printf("\nSupported operations for %s:\n", system)
-		ops := []runit.Operation{
-			runit.OpUp, runit.OpOnce, runit.OpDown,
-			runit.OpTerm, runit.OpKill, runit.OpQuit,
+		ops := []svcmgr.Operation{
+			svcmgr.OpUp, svcmgr.OpOnce, svcmgr.OpDown,
+			svcmgr.OpTerm, svcmgr.OpKill, svcmgr.OpQuit,
 		}
 		for _, op := range ops {
 			if config.IsOperationSupported(op) {

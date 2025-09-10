@@ -1,6 +1,6 @@
 //go:build !linux && !darwin
 
-package runit
+package svcmgr
 
 import (
 	"context"

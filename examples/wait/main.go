@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 	serviceDir := os.Args[1]
 
 	// Create a client (using runit as example - you could also use ServiceTypeDaemontools, ServiceTypeS6, etc)
-	client, err := runit.NewClient(serviceDir, runit.ServiceTypeRunit)
+	client, err := svcmgr.NewClient(serviceDir, svcmgr.ServiceTypeRunit)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
@@ -56,13 +56,13 @@ func main() {
 	}
 
 	// Example 2: Wait for specific state
-	targetState := runit.StateRunning
+	targetState := svcmgr.StateRunning
 	fmt.Printf("\nWaiting for service to reach %s state (timeout: 30s)...\n", targetState)
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel2()
 
 	// Wait for specific state
-	finalStatus, err := client.Wait(ctx2, []runit.State{targetState})
+	finalStatus, err := client.Wait(ctx2, []svcmgr.State{targetState})
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			fmt.Printf("Service did not reach %s state within timeout\n", targetState)

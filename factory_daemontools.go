@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 // ConfigDaemontools returns the default configuration for daemontools
 func ConfigDaemontools() *ServiceConfig {

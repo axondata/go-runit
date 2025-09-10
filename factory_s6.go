@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 // ConfigS6 returns the default configuration for s6
 func ConfigS6() *ServiceConfig {

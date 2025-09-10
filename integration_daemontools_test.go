@@ -1,14 +1,14 @@
-// Package runit_test provides integration tests for daemontools compatibility.
+// Package svcmgr_test provides integration tests for daemontools compatibility.
 // These tests require daemontools to be installed (svscan, supervise, etc.).
 // Tests will automatically skip if daemontools tools are not available.
-package runit_test
+package svcmgr_test
 
 import (
 	"context"
 	"path/filepath"
 	"testing"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func TestIntegrationDaemontools(t *testing.T) {

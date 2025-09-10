@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 import (
 	"fmt"

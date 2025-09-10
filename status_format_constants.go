@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 // Status file format constants for each supervision system
 

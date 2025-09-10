@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 
 func run(service, action string, timeout time.Duration) error {
 	// Default to runit for this basic example
-	client, err := runit.NewClientRunit(service)
+	client, err := svcmgr.NewClientRunit(service)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}

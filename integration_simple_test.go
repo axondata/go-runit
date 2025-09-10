@@ -1,7 +1,7 @@
 //go:build linux
 // +build linux
 
-package runit
+package svcmgr
 
 import (
 	"context"
