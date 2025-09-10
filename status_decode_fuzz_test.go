@@ -1,13 +1,13 @@
 //go:build go1.18
 // +build go1.18
 
-package runit
+package svcmgr
 
 import (
 	"testing"
 )
 
-// FuzzDecodeStatus tests the decodeStatus function with random inputs
+// FuzzDecodeStatus tests the decodeStatusRunit function with random inputs
 // to ensure it doesn't panic or cause unexpected behavior
 func FuzzDecodeStatus(f *testing.F) {
 	// Add seed corpus with valid status data
@@ -27,8 +27,8 @@ func FuzzDecodeStatus(f *testing.F) {
 	f.Add(maxData)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		// Test that decodeStatus doesn't panic
-		status, err := decodeStatus(data)
+		// Test that decodeStatusRunit doesn't panic
+		status, err := decodeStatusRunit(data)
 
 		// If successful, verify the status is reasonable
 		if err == nil {
@@ -72,7 +72,7 @@ func FuzzMakeStatusData(f *testing.F) {
 		}
 
 		// Test round-trip: encode then decode
-		status, err := decodeStatus(data)
+		status, err := decodeStatusRunit(data)
 		if err != nil {
 			// Some combinations might be invalid, that's ok
 			return

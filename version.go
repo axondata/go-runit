@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 // Version is the current version of the go-runit library
 const Version = "1.0.0"

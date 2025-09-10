@@ -27,7 +27,7 @@ A clear and concise description of what you expected to happen.
 **System information:**
  - OS: [e.g. Ubuntu 22.04, macOS 14.0]
  - Go version: [e.g. 1.25.0]
- - go-runit version: [e.g. v1.0.0]
+ - go-svcmgr version: [e.g. v1.0.0]
  - runit version: [e.g. 2.1.2]
 
 **Additional context**

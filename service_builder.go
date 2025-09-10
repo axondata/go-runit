@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 import (
 	"fmt"
@@ -13,158 +13,117 @@ import (
 // ServiceBuilder provides a fluent interface for creating runit service directories
 // with run scripts, environment variables, logging, and process control settings.
 type ServiceBuilder struct {
-	// Name is the service name
-	Name string
-	// Dir is the base directory where the service will be created
-	Dir string
-	// Cmd is the command and arguments to execute
-	Cmd []string
-	// Cwd is the working directory for the service
-	Cwd string
-	// Umask sets the file mode creation mask
-	Umask fs.FileMode
-	// Env contains environment variables for the service
-	Env map[string]string
-	// Chpst configures process limits and user context
-	Chpst *ChpstBuilder
-	// Svlogd configures logging
-	Svlogd *SvlogdBuilder
-	// Finish is the command to run when the service stops
-	Finish []string
-	// StderrPath is an optional path to redirect stderr (if different from stdout)
-	StderrPath string
-	// ChpstPath is the path to the chpst binary
-	ChpstPath string
-	// SvlogdPath is the path to the svlogd binary
-	SvlogdPath string
-}
-
-// ChpstBuilder configures chpst options for process control
-type ChpstBuilder struct {
-	// User to run the process as
-	User string
-	// Group to run the process as
-	Group string
-	// Nice value for process priority
-	Nice int
-	// IONice value for I/O priority
-	IONice int
-	// LimitMem sets memory limit in bytes
-	LimitMem int64
-	// LimitFiles sets maximum number of open files
-	LimitFiles int
-	// LimitProcs sets maximum number of processes
-	LimitProcs int
-	// LimitCPU sets CPU time limit in seconds
-	LimitCPU int
-	// Root changes the root directory
-	Root string
-}
-
-// SvlogdBuilder configures svlogd logging options
-type SvlogdBuilder struct {
-	// Size is the maximum size of current log file in bytes
-	Size int64
-	// Num is the number of old log files to keep
-	Num int
-	// Timeout is the maximum age of current log file in seconds
-	Timeout int
-	// Processor is an optional processor script for log files
-	Processor string
-	// Config contains additional svlogd configuration lines
-	Config []string
-	// Timestamp adds timestamps to log lines
-	Timestamp bool
-	// Replace replaces non-printable characters
-	Replace bool
-	// Prefix adds a prefix to each log line
-	Prefix string
+	config *ServiceBuilderConfig
 }
 
 // NewServiceBuilder creates a new ServiceBuilder with default settings
 func NewServiceBuilder(name, dir string) *ServiceBuilder {
 	return &ServiceBuilder{
-		Name:       name,
-		Dir:        dir,
-		Env:        make(map[string]string),
-		Umask:      DefaultUmask,
-		ChpstPath:  DefaultChpstPath,
-		SvlogdPath: DefaultSvlogdPath,
+		config: &ServiceBuilderConfig{
+			Name:       name,
+			Dir:        dir,
+			Env:        nil,
+			Umask:      DefaultUmask,
+			ChpstPath:  DefaultChpstPath,
+			SvlogdPath: DefaultSvlogdPath,
+		},
 	}
+}
+
+// Config returns a copy of the current configuration
+func (b *ServiceBuilder) Config() *ServiceBuilderConfig {
+	return b.config.Clone()
 }
 
 // WithCmd sets the command to execute
 func (b *ServiceBuilder) WithCmd(cmd []string) *ServiceBuilder {
-	b.Cmd = cmd
+	b.config.Cmd = cmd
 	return b
 }
 
 // WithCwd sets the working directory
 func (b *ServiceBuilder) WithCwd(cwd string) *ServiceBuilder {
-	b.Cwd = cwd
+	b.config.Cwd = cwd
 	return b
 }
 
 // WithUmask sets the file mode creation mask
 func (b *ServiceBuilder) WithUmask(umask fs.FileMode) *ServiceBuilder {
-	b.Umask = umask
+	b.config.Umask = umask
 	return b
 }
 
 // WithEnv adds an environment variable
 func (b *ServiceBuilder) WithEnv(key, value string) *ServiceBuilder {
-	b.Env[key] = value
+	if b.config.Env == nil {
+		b.config.Env = make(map[string]string)
+	}
+	b.config.Env[key] = value
+	return b
+}
+
+// WithEnvMap adds multiple environment variables from a map
+func (b *ServiceBuilder) WithEnvMap(env map[string]string) *ServiceBuilder {
+	// Ensure the map is initialized (defensive programming)
+	if b.config.Env == nil {
+		b.config.Env = make(map[string]string, len(env))
+	}
+
+	// Add all entries from the provided map
+	for key, value := range env {
+		b.config.Env[key] = value
+	}
 	return b
 }
 
 // WithChpst configures process control settings
-func (b *ServiceBuilder) WithChpst(fn func(*ChpstBuilder)) *ServiceBuilder {
-	if b.Chpst == nil {
-		b.Chpst = &ChpstBuilder{}
+func (b *ServiceBuilder) WithChpst(fn func(*ChpstConfig)) *ServiceBuilder {
+	if b.config.Chpst == nil {
+		b.config.Chpst = &ChpstConfig{}
 	}
-	fn(b.Chpst)
+	fn(b.config.Chpst)
 	return b
 }
 
 // WithChpstPath sets the path to the chpst binary
 func (b *ServiceBuilder) WithChpstPath(path string) *ServiceBuilder {
-	b.ChpstPath = path
+	b.config.ChpstPath = path
 	return b
 }
 
 // WithSvlogd configures logging settings
-func (b *ServiceBuilder) WithSvlogd(fn func(*SvlogdBuilder)) *ServiceBuilder {
-	if b.Svlogd == nil {
-		b.Svlogd = &SvlogdBuilder{
+func (b *ServiceBuilder) WithSvlogd(fn func(*ConfigSvlogd)) *ServiceBuilder {
+	if b.config.Svlogd == nil {
+		b.config.Svlogd = &ConfigSvlogd{
 			Size:      1000000,
 			Num:       10,
 			Timestamp: true,
 		}
 	}
-	fn(b.Svlogd)
+	fn(b.config.Svlogd)
 	return b
 }
 
 // WithSvlogdPath sets the path to the svlogd binary
 func (b *ServiceBuilder) WithSvlogdPath(path string) *ServiceBuilder {
-	b.SvlogdPath = path
+	b.config.SvlogdPath = path
 	return b
 }
 
 // WithFinish sets the command to run when the service stops
 func (b *ServiceBuilder) WithFinish(cmd []string) *ServiceBuilder {
-	b.Finish = cmd
+	b.config.Finish = cmd
 	return b
 }
 
 // WithStderrPath sets a separate path for stderr output
 func (b *ServiceBuilder) WithStderrPath(path string) *ServiceBuilder {
-	b.StderrPath = path
+	b.config.StderrPath = path
 	return b
 }
 
 // buildArgs constructs the command-line arguments for chpst
-func (c *ChpstBuilder) buildArgs() []string {
+func (c *ChpstConfig) buildArgs() []string {
 	var args []string
 
 	if c.User != "" {
@@ -196,7 +155,7 @@ func (c *ChpstBuilder) buildArgs() []string {
 }
 
 // buildArgs constructs the command-line arguments for svlogd
-func (s *SvlogdBuilder) buildArgs() []string {
+func (s *ConfigSvlogd) buildArgs() []string {
 	var args []string
 
 	if s.Size > 0 {
@@ -223,25 +182,25 @@ func (s *SvlogdBuilder) buildArgs() []string {
 
 // Build creates the service directory structure and scripts
 func (b *ServiceBuilder) Build() error {
-	if b.Dir == "" {
+	if b.config.Dir == "" {
 		return fmt.Errorf("service directory not specified")
 	}
-	if len(b.Cmd) == 0 {
+	if len(b.config.Cmd) == 0 {
 		return fmt.Errorf("command not specified")
 	}
 
-	serviceDir := filepath.Join(b.Dir, b.Name)
+	serviceDir := filepath.Join(b.config.Dir, b.config.Name)
 	if err := os.MkdirAll(serviceDir, DirMode); err != nil {
 		return fmt.Errorf("creating service directory: %w", err)
 	}
 
-	if len(b.Env) > 0 {
+	if len(b.config.Env) > 0 {
 		envDir := filepath.Join(serviceDir, "env")
 		if err := os.MkdirAll(envDir, DirMode); err != nil {
 			return fmt.Errorf("creating env directory: %w", err)
 		}
 
-		for key, value := range b.Env {
+		for key, value := range b.config.Env {
 			envFile := filepath.Join(envDir, key)
 			if err := renameio.WriteFile(envFile, []byte(value), FileMode); err != nil {
 				return fmt.Errorf("writing env file %s: %w", key, err)
@@ -255,7 +214,7 @@ func (b *ServiceBuilder) Build() error {
 		return fmt.Errorf("writing run script: %w", err)
 	}
 
-	if len(b.Finish) > 0 {
+	if len(b.config.Finish) > 0 {
 		finishScript := b.buildFinishScript()
 		finishFile := filepath.Join(serviceDir, "finish")
 		if err := renameio.WriteFile(finishFile, []byte(finishScript), ExecMode); err != nil {
@@ -263,7 +222,7 @@ func (b *ServiceBuilder) Build() error {
 		}
 	}
 
-	if b.Svlogd != nil {
+	if b.config.Svlogd != nil {
 		logDir := filepath.Join(serviceDir, "log")
 		if err := os.MkdirAll(logDir, DirMode); err != nil {
 			return fmt.Errorf("creating log directory: %w", err)
@@ -290,41 +249,49 @@ func (b *ServiceBuilder) buildRunScript() string {
 	lines = append(lines, "#!/bin/sh")
 
 	// Handle stderr redirection
-	if b.StderrPath != "" {
-		lines = append(lines, fmt.Sprintf("exec 2>%s", shellQuote(b.StderrPath)))
+	if b.config.StderrPath != "" {
+		lines = append(lines, fmt.Sprintf("exec 2>%s", shellQuote(b.config.StderrPath)))
 	} else {
 		lines = append(lines, "exec 2>&1")
 	}
 
-	if b.Umask != 0 {
-		lines = append(lines, fmt.Sprintf("umask %04o", b.Umask))
+	if b.config.Umask != 0 {
+		lines = append(lines, fmt.Sprintf("umask %04o", b.config.Umask))
 	}
 
-	if b.Cwd != "" {
-		lines = append(lines, fmt.Sprintf("cd %s", shellQuote(b.Cwd)))
+	if b.config.Cwd != "" {
+		lines = append(lines, fmt.Sprintf("cd %s", shellQuote(b.config.Cwd)))
 	}
 
 	// Calculate capacity needed
-	capacity := len(b.Cmd)
-	if len(b.Env) > 0 {
+	capacity := len(b.config.Cmd)
+	if len(b.config.Env) > 0 {
 		capacity += 3 // chpst -e ./env
 	}
-	if b.Chpst != nil {
-		capacity += 1 + len(b.Chpst.buildArgs())
+	if b.config.Chpst != nil {
+		capacity += 1 + len(b.config.Chpst.buildArgs())
 	}
 
 	cmdParts := make([]string, 0, capacity)
 
-	if len(b.Env) > 0 {
-		cmdParts = append(cmdParts, b.ChpstPath, "-e", "./env")
+	if len(b.config.Env) > 0 {
+		// Handle environment variables based on the tool being used
+		// s6 uses s6-envdir, while runit/daemontools use chpst/setuidgid with -e flag
+		if b.config.ChpstPath == "s6-setuidgid" || b.config.ChpstPath == "s6-envdir" {
+			// For s6, use s6-envdir without the -e flag
+			cmdParts = append(cmdParts, "s6-envdir", "./env")
+		} else {
+			// For runit and daemontools, use chpst/setuidgid with -e flag
+			cmdParts = append(cmdParts, b.config.ChpstPath, "-e", "./env")
+		}
 	}
 
-	if b.Chpst != nil {
-		cmdParts = append(cmdParts, b.ChpstPath)
-		cmdParts = append(cmdParts, b.Chpst.buildArgs()...)
+	if b.config.Chpst != nil {
+		cmdParts = append(cmdParts, b.config.ChpstPath)
+		cmdParts = append(cmdParts, b.config.Chpst.buildArgs()...)
 	}
 
-	for _, part := range b.Cmd {
+	for _, part := range b.config.Cmd {
 		cmdParts = append(cmdParts, shellQuote(part))
 	}
 
@@ -338,8 +305,8 @@ func (b *ServiceBuilder) buildFinishScript() string {
 	var lines []string
 	lines = append(lines, "#!/bin/sh")
 
-	cmdParts := make([]string, 0, len(b.Finish))
-	for _, part := range b.Finish {
+	cmdParts := make([]string, 0, len(b.config.Finish))
+	for _, part := range b.config.Finish {
 		cmdParts = append(cmdParts, shellQuote(part))
 	}
 
@@ -353,14 +320,14 @@ func (b *ServiceBuilder) buildLogRunScript() string {
 	var lines []string
 	lines = append(lines, "#!/bin/sh")
 
-	cmdParts := []string{b.SvlogdPath}
-	if b.Svlogd.Timestamp {
+	cmdParts := []string{b.config.SvlogdPath}
+	if b.config.Svlogd.Timestamp {
 		cmdParts = append(cmdParts, "-tt")
 	}
-	if b.Svlogd.Replace {
+	if b.config.Svlogd.Replace {
 		cmdParts = append(cmdParts, "-r")
 	}
-	cmdParts = append(cmdParts, b.Svlogd.buildArgs()...)
+	cmdParts = append(cmdParts, b.config.Svlogd.buildArgs()...)
 
 	lines = append(lines, "exec "+strings.Join(cmdParts, " "))
 

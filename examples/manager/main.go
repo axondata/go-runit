@@ -11,7 +11,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func main() {
@@ -35,9 +35,9 @@ func main() {
 func run(services, action string, concurrency int, timeout time.Duration) error {
 	serviceList := parseServices(services)
 
-	mgr := runit.NewManager(
-		runit.WithConcurrency(concurrency),
-		runit.WithTimeout(timeout),
+	mgr := svcmgr.NewManager(
+		svcmgr.WithConcurrency(concurrency),
+		svcmgr.WithTimeout(timeout),
 	)
 
 	ctx := context.Background()
@@ -66,7 +66,7 @@ func parseServices(services string) []string {
 	return serviceList
 }
 
-func handleUp(ctx context.Context, mgr *runit.Manager, services []string) error {
+func handleUp(ctx context.Context, mgr *svcmgr.Manager, services []string) error {
 	if err := mgr.Up(ctx, services...); err != nil {
 		return fmt.Errorf("failed to start services: %w", err)
 	}
@@ -74,7 +74,7 @@ func handleUp(ctx context.Context, mgr *runit.Manager, services []string) error 
 	return nil
 }
 
-func handleDown(ctx context.Context, mgr *runit.Manager, services []string) error {
+func handleDown(ctx context.Context, mgr *svcmgr.Manager, services []string) error {
 	if err := mgr.Down(ctx, services...); err != nil {
 		return fmt.Errorf("failed to stop services: %w", err)
 	}
@@ -82,7 +82,7 @@ func handleDown(ctx context.Context, mgr *runit.Manager, services []string) erro
 	return nil
 }
 
-func handleTerm(ctx context.Context, mgr *runit.Manager, services []string) error {
+func handleTerm(ctx context.Context, mgr *svcmgr.Manager, services []string) error {
 	if err := mgr.Term(ctx, services...); err != nil {
 		return fmt.Errorf("failed to term services: %w", err)
 	}
@@ -90,7 +90,7 @@ func handleTerm(ctx context.Context, mgr *runit.Manager, services []string) erro
 	return nil
 }
 
-func handleKill(ctx context.Context, mgr *runit.Manager, services []string) error {
+func handleKill(ctx context.Context, mgr *svcmgr.Manager, services []string) error {
 	if err := mgr.Kill(ctx, services...); err != nil {
 		return fmt.Errorf("failed to kill services: %w", err)
 	}
@@ -98,7 +98,7 @@ func handleKill(ctx context.Context, mgr *runit.Manager, services []string) erro
 	return nil
 }
 
-func handleStatus(ctx context.Context, mgr *runit.Manager, serviceList []string) error {
+func handleStatus(ctx context.Context, mgr *svcmgr.Manager, serviceList []string) error {
 	statuses, err := mgr.Status(ctx, serviceList...)
 	if err != nil {
 		log.Printf("Warning: %v", err)
@@ -107,7 +107,7 @@ func handleStatus(ctx context.Context, mgr *runit.Manager, serviceList []string)
 	return printStatusTable(serviceList, statuses)
 }
 
-func printStatusTable(serviceList []string, statuses map[string]runit.Status) error {
+func printStatusTable(serviceList []string, statuses map[string]svcmgr.Status) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
 	// Write header
@@ -133,7 +133,7 @@ func printStatusTable(serviceList []string, statuses map[string]runit.Status) er
 	return nil
 }
 
-func writeServiceStatus(w *tabwriter.Writer, svc string, statuses map[string]runit.Status) error {
+func writeServiceStatus(w *tabwriter.Writer, svc string, statuses map[string]svcmgr.Status) error {
 	status, ok := statuses[svc]
 	if !ok {
 		_, err := fmt.Fprintf(w, "%s\tERROR\t-\t-\n", shortenPath(svc))

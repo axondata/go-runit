@@ -1,7 +1,7 @@
 //go:build go1.18
 // +build go1.18
 
-package runit
+package svcmgr
 
 import (
 	"context"
@@ -16,6 +16,16 @@ import (
 
 // FuzzClientOperations tests various client operations with random inputs
 func FuzzClientOperations(f *testing.F) {
+	// Check if we can create unix sockets before starting parallel tests
+	tmpDir := f.TempDir()
+	testSocketPath := filepath.Join(tmpDir, "test.sock")
+	listener, err := net.Listen("unix", testSocketPath)
+	if err != nil {
+		f.Skip("Cannot create unix sockets on this platform")
+	}
+	_ = listener.Close()
+	_ = os.Remove(testSocketPath)
+
 	// Add seed corpus with valid operations
 	ops := []byte{'u', 'd', 'o', 't', 'k', 'h', 'i', 'a', 'q', 'p', 'c', 'x'}
 	for _, op := range ops {
@@ -28,8 +38,14 @@ func FuzzClientOperations(f *testing.F) {
 	f.Add(byte('z'))
 
 	f.Fuzz(func(t *testing.T, opByte byte) {
-		// Create a test environment
-		tmpDir := t.TempDir()
+		// Create a test environment with shorter path for Unix socket limit
+		// Unix sockets have a path length limit (typically 104-108 bytes)
+		tmpDir, err := os.MkdirTemp("/tmp", "fuzz")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
+
 		superviseDir := filepath.Join(tmpDir, "supervise")
 		if err := os.MkdirAll(superviseDir, 0o755); err != nil {
 			t.Fatal(err)
@@ -40,8 +56,7 @@ func FuzzClientOperations(f *testing.F) {
 		// Create a mock control socket
 		listener, err := net.Listen("unix", controlPath)
 		if err != nil {
-			t.Skip("Cannot create unix socket")
-			return
+			t.Fatalf("Failed to create unix socket: %v", err)
 		}
 		defer func() { _ = listener.Close() }()
 
@@ -61,7 +76,7 @@ func FuzzClientOperations(f *testing.F) {
 		}()
 
 		// Create client
-		client, err := New(tmpDir, WithMaxAttempts(1))
+		client, err := NewClientRunit(tmpDir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -146,7 +161,7 @@ func FuzzStatusParsing(f *testing.F) {
 			t.Fatal(err)
 		}
 
-		client, err := New(tmpDir)
+		client, err := NewClientRunit(tmpDir)
 		if err != nil {
 			t.Fatal(err)
 		}

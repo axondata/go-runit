@@ -1,7 +1,4 @@
-//go:build integration || integration_runit
-// +build integration integration_runit
-
-package runit_test
+package svcmgr_test
 
 import (
 	"context"
@@ -13,24 +10,19 @@ import (
 
 	"github.com/google/renameio/v2"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 // TestIntegrationExitCodeDetection verifies that runit properly captures
 // and reflects process exit codes in the service state
 func TestIntegrationExitCodeDetection(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireTool(t, "runsv")
 
 	testCases := []struct {
 		name           string
 		script         string
-		expectedStates []runit.State // States we expect to see in order
+		expectedStates []svcmgr.State // States we expect to see in order
 		description    string
 	}{
 		{
@@ -41,8 +33,8 @@ echo "Starting service"
 sleep 1
 echo "Exiting cleanly with code 0"
 exit 0`,
-			expectedStates: []runit.State{
-				runit.StateRunning, // Initially running
+			expectedStates: []svcmgr.State{
+				svcmgr.StateRunning, // Initially running
 				// Note: StateCrashed is very transient as runit restarts quickly
 			},
 			description: "Service exits with 0 and gets restarted by runit",
@@ -55,8 +47,8 @@ echo "Starting service"
 sleep 1
 echo "Exiting with error code 1"
 exit 1`,
-			expectedStates: []runit.State{
-				runit.StateRunning,
+			expectedStates: []svcmgr.State{
+				svcmgr.StateRunning,
 			},
 			description: "Service exits with 1 and gets restarted by runit",
 		},
@@ -68,8 +60,8 @@ echo "Starting service"
 sleep 1
 echo "Fatal error, exit 111"
 exit 111`,
-			expectedStates: []runit.State{
-				runit.StateRunning,
+			expectedStates: []svcmgr.State{
+				svcmgr.StateRunning,
 			},
 			description: "Service exits with 111 and gets restarted by runit",
 		},
@@ -80,8 +72,8 @@ exec 2>&1
 echo "Starting service"
 # This will run until killed
 exec sleep 300`,
-			expectedStates: []runit.State{
-				runit.StateRunning,
+			expectedStates: []svcmgr.State{
+				svcmgr.StateRunning,
 			},
 			description: "Service killed with SIGKILL gets restarted",
 		},
@@ -94,10 +86,10 @@ echo "Starting service with TERM handler"
 while true; do
     sleep 1
 done`,
-			expectedStates: []runit.State{
-				runit.StateRunning,
-				runit.StateFinishing, // Finish script may run
-				runit.StateDown,      // After process exits
+			expectedStates: []svcmgr.State{
+				svcmgr.StateRunning,
+				svcmgr.StateFinishing, // Finish script may run
+				svcmgr.StateDown,      // After process exits
 			},
 			description: "Service handling SIGTERM gracefully",
 		},
@@ -127,8 +119,8 @@ done`,
 				t.Fatalf("failed to start runsv: %v", err)
 			}
 			defer func() {
-				cmd.Process.Kill()
-				cmd.Wait()
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
 			}()
 
 			// Wait for supervise directory
@@ -140,7 +132,7 @@ done`,
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			client, err := runit.New(serviceDir)
+			client, err := svcmgr.NewClientRunit(serviceDir)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
@@ -151,15 +143,15 @@ done`,
 			}
 
 			// Track states we observe
-			observedStates := []runit.State{}
-			statesSeen := make(map[runit.State]bool)
+			observedStates := []svcmgr.State{}
+			statesSeen := make(map[svcmgr.State]bool)
 
 			// Monitor state changes
-			checkState := func() runit.State {
+			checkState := func() svcmgr.State {
 				status, err := client.Status(context.Background())
 				if err != nil {
 					t.Logf("Warning: failed to get status: %v", err)
-					return runit.StateUnknown
+					return svcmgr.StateUnknown
 				}
 
 				if !statesSeen[status.State] {
@@ -177,12 +169,13 @@ done`,
 			t.Logf("Initial state after Up: %v", initialState)
 
 			// For signal tests, send the appropriate signal
-			if tc.name == "signal_kill" {
+			switch tc.name {
+			case "signal_kill":
 				time.Sleep(1 * time.Second)
 				if err := client.Kill(context.Background()); err != nil {
 					t.Errorf("failed to send KILL: %v", err)
 				}
-			} else if tc.name == "signal_term_handled" {
+			case "signal_term_handled":
 				time.Sleep(1 * time.Second)
 				// First send TERM
 				if err := client.Term(context.Background()); err != nil {
@@ -215,7 +208,7 @@ done`,
 				}
 
 				// For crashed services, runit will restart them
-				if state == runit.StateCrashed {
+				if state == svcmgr.StateCrashed {
 					// Wait a bit to see if it gets restarted
 					time.Sleep(1 * time.Second)
 					checkState()
@@ -243,9 +236,7 @@ func TestIntegrationFinishScript(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	svcmgr.RequireTool(t, "runsv")
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "finish-test")
@@ -290,8 +281,8 @@ exit 0`
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -303,7 +294,7 @@ exit 0`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -316,7 +307,7 @@ exit 0`
 	// First wait for service to be running
 	for i := 0; i < 20; i++ {
 		status, err := client.Status(context.Background())
-		if err == nil && status.State == runit.StateRunning {
+		if err == nil && status.State == svcmgr.StateRunning {
 			t.Logf("Service is running with PID %d", status.PID)
 			break
 		}
@@ -335,14 +326,14 @@ exit 0`
 
 		t.Logf("Status check %d: State=%v PID=%d", i, status.State, status.PID)
 
-		if status.State == runit.StateFinishing {
+		if status.State == svcmgr.StateFinishing {
 			finishingSeen = true
 			t.Logf("Detected StateFinishing at check %d", i)
 			break
 		}
 
 		// Also break if we see the service has fully stopped
-		if status.State == runit.StateDown {
+		if status.State == svcmgr.StateDown {
 			t.Logf("Service is down at check %d", i)
 			break
 		}

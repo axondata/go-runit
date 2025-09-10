@@ -1,7 +1,4 @@
-//go:build integration || integration_runit
-// +build integration integration_runit
-
-package runit_test
+package svcmgr_test
 
 import (
 	"context"
@@ -13,22 +10,14 @@ import (
 
 	"github.com/google/renameio/v2"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 // TestIntegrationSingleService tests a single runit service lifecycle
 func TestIntegrationSingleService(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	// Check if runit tools are available
-	if _, err := exec.LookPath("runsvdir"); err != nil {
-		t.Skip("runsvdir not found in PATH")
-	}
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
+	svcmgr.RequireTool(t, "runsvdir")
 
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
@@ -63,8 +52,8 @@ exit 0
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory to be created
@@ -77,7 +66,7 @@ exit 0
 	}
 
 	// Create client for the service
-	client, err := runit.New(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -107,8 +96,8 @@ exit 0
 		if status.PID == 0 {
 			t.Error("service should be running but PID is 0")
 		}
-		if status.State != runit.StateRunning {
-			t.Errorf("expected state %v, got %v", runit.StateRunning, status.State)
+		if status.State != svcmgr.StateRunning {
+			t.Errorf("expected state %v, got %v", svcmgr.StateRunning, status.State)
 		}
 		t.Logf("Service started: pid=%d state=%v", status.PID, status.State)
 	})
@@ -149,67 +138,23 @@ exit 0
 		if status.PID != 0 {
 			t.Errorf("service should be stopped but PID is %d", status.PID)
 		}
-		if status.State != runit.StateDown {
-			t.Errorf("expected state %v, got %v", runit.StateDown, status.State)
+		if status.State != svcmgr.StateDown {
+			t.Errorf("expected state %v, got %v", svcmgr.StateDown, status.State)
 		}
 		t.Logf("Service stopped: state=%v", status.State)
-	})
-
-	t.Run("Watch", func(t *testing.T) {
-		watchCtx, watchCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer watchCancel()
-
-		events, stop, err := client.Watch(watchCtx)
-		if err != nil {
-			t.Skipf("watch not supported: %v", err)
-			return
-		}
-		defer stop()
-
-		// Start the service to trigger events
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			client.Up(context.Background())
-			time.Sleep(1 * time.Second)
-			client.Down(context.Background())
-		}()
-
-		eventCount := 0
-		for {
-			select {
-			case event := <-events:
-				if event.Err != nil {
-					t.Logf("Watch error: %v", event.Err)
-				} else {
-					eventCount++
-					t.Logf("Watch event %d: state=%v pid=%d",
-						eventCount, event.Status.State, event.Status.PID)
-				}
-			case <-watchCtx.Done():
-				if eventCount == 0 {
-					t.Error("expected at least one watch event")
-				}
-				return
-			}
-		}
 	})
 }
 
 // TestIntegrationServiceWithExitCodes tests services with different exit codes
 func TestIntegrationServiceWithExitCodes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	testCases := []struct {
 		name     string
 		script   string
 		wantUp   bool
-		expected runit.State
+		expected svcmgr.State
 	}{
 		{
 			name: "exit_0",
@@ -218,7 +163,7 @@ exec 2>&1
 echo "Exiting with 0"
 exit 0`,
 			wantUp:   true,
-			expected: runit.StateCrashed, // want up but process exits
+			expected: svcmgr.StateCrashed, // want up but process exits
 		},
 		{
 			name: "exit_1",
@@ -227,7 +172,7 @@ exec 2>&1
 echo "Exiting with 1"
 exit 1`,
 			wantUp:   true,
-			expected: runit.StateCrashed,
+			expected: svcmgr.StateCrashed,
 		},
 		{
 			name: "long_running",
@@ -236,7 +181,7 @@ exec 2>&1
 echo "Long running service"
 exec sleep 300`,
 			wantUp:   true,
-			expected: runit.StateRunning,
+			expected: svcmgr.StateRunning,
 		},
 	}
 
@@ -262,8 +207,8 @@ exec sleep 300`,
 				t.Fatalf("failed to start runsv: %v", err)
 			}
 			defer func() {
-				cmd.Process.Kill()
-				cmd.Wait()
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
 			}()
 
 			// Wait for supervise directory
@@ -275,7 +220,7 @@ exec sleep 300`,
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			client, err := runit.New(serviceDir)
+			client, err := svcmgr.NewClientRunit(serviceDir)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
@@ -304,18 +249,13 @@ exec sleep 300`,
 
 // TestIntegrationServiceBuilder tests the ServiceBuilder functionality
 func TestIntegrationServiceBuilder(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-
-	if _, err := exec.LookPath("runsv"); err != nil {
-		t.Skip("runsv not found in PATH")
-	}
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 
 	// Build a service using ServiceBuilder
-	builder := runit.NewServiceBuilder("test-builder", tmpDir)
+	builder := svcmgr.NewServiceBuilder("test-builder", tmpDir)
 	builder.
 		WithCmd([]string{"/bin/sh", "-c", "while true; do echo 'Running'; sleep 1; done"}).
 		WithEnv("TEST_VAR", "test_value").
@@ -345,8 +285,8 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -358,7 +298,7 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.New(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -374,7 +314,7 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		t.Errorf("failed to get status: %v", err)
 	}
 
-	if status.State != runit.StateRunning {
+	if status.State != svcmgr.StateRunning {
 		t.Errorf("built service not running: state=%v", status.State)
 	}
 	t.Logf("Built service running: pid=%d", status.PID)

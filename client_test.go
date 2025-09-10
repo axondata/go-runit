@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 import (
 	"context"
@@ -15,7 +15,7 @@ func TestClientNew(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	t.Run("missing supervise dir", func(t *testing.T) {
-		_, err := New(tmpDir)
+		_, err := NewClientRunit(tmpDir)
 		if err == nil {
 			t.Fatal("expected error for missing supervise dir")
 		}
@@ -27,7 +27,7 @@ func TestClientNew(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		client, err := New(filepath.Join(tmpDir, "test-service"))
+		client, err := NewClientRunit(filepath.Join(tmpDir, "test-service"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -45,34 +45,29 @@ func TestClientOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, err := New(tmpDir,
-		WithDialTimeout(3*time.Second),
-		WithWriteTimeout(2*time.Second),
-		WithReadTimeout(4*time.Second),
-		WithBackoff(20*time.Millisecond, 2*time.Second),
-		WithMaxAttempts(10),
-	)
+	client, err := NewClientRunit(tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if client.DialTimeout != 3*time.Second {
-		t.Errorf("DialTimeout = %v, want %v", client.DialTimeout, 3*time.Second)
+	// Test defaults
+	if client.DialTimeout != DefaultDialTimeout {
+		t.Errorf("DialTimeout = %v, want %v", client.DialTimeout, DefaultDialTimeout)
 	}
-	if client.WriteTimeout != 2*time.Second {
-		t.Errorf("WriteTimeout = %v, want %v", client.WriteTimeout, 2*time.Second)
+	if client.WriteTimeout != DefaultWriteTimeout {
+		t.Errorf("WriteTimeout = %v, want %v", client.WriteTimeout, DefaultWriteTimeout)
 	}
-	if client.ReadTimeout != 4*time.Second {
-		t.Errorf("ReadTimeout = %v, want %v", client.ReadTimeout, 4*time.Second)
+	if client.ReadTimeout != DefaultReadTimeout {
+		t.Errorf("ReadTimeout = %v, want %v", client.ReadTimeout, DefaultReadTimeout)
 	}
-	if client.BackoffMin != 20*time.Millisecond {
-		t.Errorf("BackoffMin = %v, want %v", client.BackoffMin, 20*time.Millisecond)
+	if client.BackoffMin != DefaultBackoffMin {
+		t.Errorf("BackoffMin = %v, want %v", client.BackoffMin, DefaultBackoffMin)
 	}
-	if client.BackoffMax != 2*time.Second {
-		t.Errorf("BackoffMax = %v, want %v", client.BackoffMax, 2*time.Second)
+	if client.BackoffMax != DefaultBackoffMax {
+		t.Errorf("BackoffMax = %v, want %v", client.BackoffMax, DefaultBackoffMax)
 	}
-	if client.MaxAttempts != 10 {
-		t.Errorf("MaxAttempts = %v, want %v", client.MaxAttempts, 10)
+	if client.MaxAttempts != DefaultMaxAttempts {
+		t.Errorf("MaxAttempts = %v, want %v", client.MaxAttempts, DefaultMaxAttempts)
 	}
 }
 
@@ -105,7 +100,7 @@ func TestClientSend(t *testing.T) {
 		}
 	}()
 
-	client, err := New(tmpDir, WithMaxAttempts(1))
+	client, err := NewClientRunit(tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +133,7 @@ func TestClientStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, err := New(tmpDir)
+	client, err := NewClientRunit(tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}

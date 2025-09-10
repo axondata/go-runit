@@ -1,4 +1,4 @@
-// Package main provides an example of watching runit service status changes.
+// Package main provides an example of watching service status changes.
 package main
 
 import (
@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/axondata/go-runit"
+	"github.com/axondata/go-svcmgr"
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 }
 
 func run(service string) error {
-	client, err := runit.New(service)
+	client, err := svcmgr.NewClientRunit(service)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
@@ -67,7 +67,7 @@ func run(service string) error {
 	}
 }
 
-func printStatus(status runit.Status) {
+func printStatus(status svcmgr.Status) {
 	timestamp := time.Now().Format("15:04:05")
 
 	stateStr := fmt.Sprintf("%-10s", status.State.String())

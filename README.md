@@ -1,28 +1,28 @@
-# `go-runit`
+# `go-svcmgr`
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/axondata/go-runit.svg)](https://pkg.go.dev/github.com/axondata/go-runit)
-[![Go Report Card](https://goreportcard.com/badge/github.com/axondata/go-runit)](https://goreportcard.com/report/github.com/axondata/go-runit)
-[![Coverage Status](https://coveralls.io/repos/github/axondata/go-runit/badge.svg?branch=main)](https://coveralls.io/github/axondata/go-runit?branch=main)
+[![Go Reference](https://pkg.go.dev/badge/github.com/axondata/go-svcmgr.svg)](https://pkg.go.dev/github.com/axondata/go-svcmgr)
+[![Go Report Card](https://goreportcard.com/badge/github.com/axondata/go-svcmgr)](https://goreportcard.com/report/github.com/axondata/go-svcmgr)
+[![Coverage Status](https://coveralls.io/repos/github/axondata/go-svcmgr/badge.svg?branch=main)](https://coveralls.io/github/axondata/go-svcmgr?branch=main)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub release](https://img.shields.io/github/release/axondata/go-runit.svg)](https://github.com/axondata/go-runit/releases)
+[![GitHub release](https://img.shields.io/github/release/axondata/go-svcmgr.svg)](https://github.com/axondata/go-svcmgr/releases)
 
-A Go-native library to control [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervisor.
+A Go-native library for controlling process supervisors including [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), and other [`daemontools`](https://cr.yp.to/daemontools.html)-compatible systems, with an adapter for [`systemd`](https://systemd.io/) on Linux.
 
 ## Features
 
-- **Native control**: Write single-byte commands directly to `supervise/control`
-- **Binary status decoding**: Parses `supervise/status` record
-- **Real-time watching**: Monitor status changes via fsnotify (no polling)
-- **Concurrent operations**: Manage multiple services with worker pools via [`Manager`](https://pkg.go.dev/github.com/axondata/go-runit#Manager)
+- **Native daemontools protocol**: Direct binary control via `supervise/control` and `supervise/status`
+- **systemd adapter**: Unified API for systemd services on Linux
+- **Real-time monitoring**: Status changes via fsnotify (no polling)
+- **Concurrent operations**: Worker pool management via [`Manager`](https://pkg.go.dev/github.com/axondata/go-svcmgr#Manager)
 - **Zero allocations**: Optimized hot paths with stack-based operations
-- **Platform support**: Linux and macOS (darwin)
-- **Dev mode**: Optional unprivileged `runsvdir` trees for development
-- **Compatibility**: Works with [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), or any [`daemontools`](https://cr.yp.to/daemontools.html)-compatible process supervision system
+- **Cross-platform**: Linux and macOS (systemd on Linux only)
+- **Development mode**: Unprivileged `runsvdir` trees for testing
+- **Multi-supervisor support**: [`runit`](https://github.com/g-pape/runit/), [`s6`](https://github.com/skarnet/s6), [`daemontools`](https://cr.yp.to/daemontools.html), and [`systemd`](https://systemd.io/)
 
 ## Installation
 
 ```bash
-go get github.com/axondata/go-runit
+go get github.com/axondata/go-svcmgr
 ```
 
 Optional build tags:
@@ -42,12 +42,12 @@ import (
     "sync"
     "time"
 
-    "github.com/axondata/go-runit"
+    "github.com/axondata/go-svcmgr"
 )
 
 func main() {
     // Create client for a service
-    client, err := runit.New("/etc/service/web")
+    client, err := svcmgr.New("/etc/service/web")
     if err != nil {
         log.Fatal(err)
     }
@@ -125,14 +125,14 @@ func main() {
 
 ## API Reference
 
-### [`Client`](https://pkg.go.dev/github.com/axondata/go-runit#Client) (Single Service)
+### [`Client`](https://pkg.go.dev/github.com/axondata/go-svcmgr#Client) (Single Service)
 
 ```go
 // Create a client
-client, err := runit.New("/etc/service/myapp",
-    runit.WithDialTimeout(3*time.Second),
-    runit.WithMaxAttempts(5),
-    runit.WithBackoff(10*time.Millisecond, 1*time.Second),
+client, err := svcmgr.New("/etc/service/myapp",
+    svcmgr.WithDialTimeout(3*time.Second),
+    svcmgr.WithMaxAttempts(5),
+    svcmgr.WithBackoff(10*time.Millisecond, 1*time.Second),
 )
 
 // Control commands
@@ -155,15 +155,15 @@ status, err := client.Status(ctx)
 
 ### Status Structure
 
-See [`Status`](https://pkg.go.dev/github.com/axondata/go-runit#Status) and [`State`](https://pkg.go.dev/github.com/axondata/go-runit#State) types in the API documentation.
+See [`Status`](https://pkg.go.dev/github.com/axondata/go-svcmgr#Status) and [`State`](https://pkg.go.dev/github.com/axondata/go-svcmgr#State) types in the API documentation.
 
-### [`Manager`](https://pkg.go.dev/github.com/axondata/go-runit#Manager) (Multiple Services)
+### [`Manager`](https://pkg.go.dev/github.com/axondata/go-svcmgr#Manager) (Multiple Services)
 
 ```go
 // Create manager with worker pool
-mgr := runit.NewManager(
-    runit.WithConcurrency(10),
-    runit.WithTimeout(5*time.Second),
+mgr := svcmgr.NewManager(
+    svcmgr.WithConcurrency(10),
+    svcmgr.WithTimeout(5*time.Second),
 )
 
 // Bulk operations
@@ -186,13 +186,13 @@ for svc, status := range statuses {
 err = mgr.Down(ctx, services...)
 ```
 
-### [`DevTree`](https://pkg.go.dev/github.com/axondata/go-runit#DevTree) (Development Mode)
+### [`DevTree`](https://pkg.go.dev/github.com/axondata/go-svcmgr#DevTree) (Development Mode)
 
 Build with `-tags devtree_cmd` to enable:
 
 ```go
 // Create dev tree
-tree, err := runit.NewDevTree("/tmp/my-runit")
+tree, err := svcmgr.NewDevTree("/tmp/my-runit")
 if err != nil {
     log.Fatal(err)
 }
@@ -210,21 +210,21 @@ err = tree.EnableService("myapp")
 err = tree.DisableService("myapp")
 ```
 
-### [`ServiceBuilder`](https://pkg.go.dev/github.com/axondata/go-runit#ServiceBuilder)
+### [`ServiceBuilder`](https://pkg.go.dev/github.com/axondata/go-svcmgr#ServiceBuilder)
 
 ```go
-builder := runit.NewServiceBuilder("myapp", "/tmp/services")
+builder := svcmgr.NewServiceBuilder("myapp", "/tmp/services")
 
 builder.
     WithCmd([]string{"/usr/bin/myapp", "--port", "8080"}).
     WithCwd("/var/myapp").
     WithEnv("NODE_ENV", "production").
-    WithChpst(func(c *runit.ChpstBuilder) { // See https://pkg.go.dev/github.com/axondata/go-runit#ChpstBuilder
+    WithChpst(func(c *svcmgr.ChpstBuilder) { // See https://pkg.go.dev/github.com/axondata/go-svcmgr#ChpstBuilder
         c.User = "myapp"
         c.LimitMem = 1024 * 1024 * 512  // 512MB
         c.LimitFiles = 1024
     }).
-    WithSvlogd(func(s *runit.SvlogdBuilder) { // See https://pkg.go.dev/github.com/axondata/go-runit#SvlogdBuilder
+    WithSvlogd(func(s *svcmgr.SvlogdBuilder) { // See https://pkg.go.dev/github.com/axondata/go-svcmgr#SvlogdBuilder
         s.Size = 10000000  // 10MB per file
         s.Num = 10         // Keep 10 files
     })
@@ -239,56 +239,101 @@ This library works with any daemontools-compatible supervision system, including
 - **daemontools** - Compatible except for `Once()` and `Quit()` operations
 - **s6** - Full compatibility with all operations
 
-The library provides factory functions for each system (see [compatibility functions](https://pkg.go.dev/github.com/axondata/go-runit#RunitConfig)):
+The library provides factory functions for each system (see [compatibility functions](https://pkg.go.dev/github.com/axondata/go-svcmgr#ConfigRunit)):
 
 ```go
 // For runit
-config := runit.RunitConfig()
-client, err := runit.NewClientWithConfig("/etc/service/myapp", config)
+config := svcmgr.ConfigRunit()
+client, err := svcmgr.NewClientWithConfig("/etc/service/myapp", config)
 
 // For daemontools
-config := runit.DaemontoolsConfig()
-client, err := runit.NewClientWithConfig("/service/myapp", config)
+config := svcmgr.ConfigDaemontools()
+client, err := svcmgr.NewClientWithConfig("/service/myapp", config)
 
 // For s6
-config := runit.S6Config()
-client, err := runit.NewClientWithConfig("/run/service/myapp", config)
+config := svcmgr.ConfigS6()
+client, err := svcmgr.NewClientWithConfig("/run/service/myapp", config)
 
 // Service builders for each system
-runitBuilder := runit.ServiceBuilderRunit("myapp", "/etc/service")        // See https://pkg.go.dev/github.com/axondata/go-runit#ServiceBuilderRunit
-dtBuilder := runit.ServiceBuilderDaemontools("myapp", "/service")         // See https://pkg.go.dev/github.com/axondata/go-runit#ServiceBuilderDaemontools
-s6Builder := runit.ServiceBuilderS6("myapp", "/run/service")              // See https://pkg.go.dev/github.com/axondata/go-runit#ServiceBuilderS6
+runitBuilder := svcmgr.ServiceBuilderRunit("myapp", "/etc/service")        // See https://pkg.go.dev/github.com/axondata/go-svcmgr#ServiceBuilderRunit
+dtBuilder := svcmgr.ServiceBuilderDaemontools("myapp", "/service")         // See https://pkg.go.dev/github.com/axondata/go-svcmgr#ServiceBuilderDaemontools
+s6Builder := svcmgr.ServiceBuilderS6("myapp", "/run/service")              // See https://pkg.go.dev/github.com/axondata/go-svcmgr#ServiceBuilderS6
 ```
+
+### systemd Adapter (Linux only)
+
+While systemd uses a different architecture than daemontools-family supervisors, this library provides an adapter that offers a consistent API:
+
+```go
+// Create a service builder
+builder := svcmgr.NewServiceBuilder("myapp", "")
+builder.WithCmd([]string{"/usr/bin/myapp", "--config", "/etc/myapp.conf"})
+builder.WithCwd("/var/lib/myapp")
+builder.WithEnv("ENV_VAR", "value")
+builder.WithChpst(func(c *svcmgr.ChpstConfig) {
+    c.User = "myuser"
+    c.LimitMem = 1024*1024*1024  // 1GB
+})
+
+// Generate and install systemd unit file
+systemdBuilder := svcmgr.NewBuilderSystemd(builder)
+if err := systemdBuilder.Build(); err != nil {
+    log.Fatal(err)
+}
+
+// Control the service
+client := svcmgr.NewClientSystemd("myapp")
+if err := client.Start(context.Background()); err != nil {
+    log.Fatal(err)
+}
+
+// Send signals
+client.USR1(ctx)  // Send SIGUSR1 to main process
+client.Term(ctx)  // Send SIGTERM to main process
+```
+
+Key features:
+- Generates native systemd unit files from `ServiceBuilder` configurations
+- Maps process limits and environment variables to systemd directives
+- Translates operations to appropriate systemctl commands
+- Sends signals directly to MainPID for precise control
+- Automatic sudo handling for non-root users
 
 ### Differences between systems
 
-| Feature | runit | daemontools | s6 |
-|---------|-------|-------------|-----|
-| Default path | `/etc/service` | `/service` | `/run/service` |
-| Privilege tool | `chpst` | `setuidgid` | `s6-setuidgid` |
-| Logger | `svlogd` | `multilog` | `s6-log` |
-| Scanner | `runsvdir` | `svscan` | `s6-svscan` |
-| `Once()` support | ✓ | ✗ | ✓ |
-| `Quit()` support | ✓ | ✗ | ✓ |
+| Feature | runit | daemontools | s6 | systemd |
+|---------|-------|-------------|-----|---------|
+| Default path | `/etc/service` | `/service` | `/run/service` | `/etc/systemd/system` |
+| Privilege tool | `chpst` | `setuidgid` | `s6-setuidgid` | Unit directives |
+| Logger | `svlogd` | `multilog` | `s6-log` | `journald` |
+| Scanner | `runsvdir` | `svscan` | `s6-svscan` | `systemd` (PID 1) |
+| Control method | Binary protocol | Binary protocol | Binary protocol | D-Bus/systemctl |
+| `Once()` support | ✓ | ✗ | ✓ | ✓ (via systemd-run) |
+| `Quit()` support | ✓ | ✗ | ✓ | ✓ |
+| `USR1/USR2` support | ✓ | ✓ | ✓ | ✓ |
+| Platform | Unix-like | Unix-like | Unix-like | Linux only |
 
-All three systems use the same binary protocol for `supervise/control` and `supervise/status`, making this library compatible with all of them.
+The daemontools family (runit, daemontools, s6) share a common binary protocol for `supervise/control` and `supervise/status`. The systemd adapter translates the same operations to systemctl commands and generates native unit files from shared service configurations.
 
 ## Control Commands Reference
 
-| Method | Byte | Signal | Description | runit | daemontools | s6 |
-|--------|------|--------|-------------|-------|-------------|-----|
-| `Up()` | `u` | - | Start service (want up) | ✓ | ✓ | ✓ |
-| `Once()` | `o` | - | Run service once | ✓ | ✗ | ✓ |
-| `Down()` | `d` | - | Stop service (want down) | ✓ | ✓ | ✓ |
-| `Term()` | `t` | SIGTERM | Graceful termination | ✓ | ✓ | ✓ |
-| `Interrupt()` | `i` | SIGINT | Interrupt | ✓ | ✓ | ✓ |
-| `HUP()` | `h` | SIGHUP | Reload configuration | ✓ | ✓ | ✓ |
-| `Alarm()` | `a` | SIGALRM | Alarm signal | ✓ | ✓ | ✓ |
-| `Quit()` | `q` | SIGQUIT | Quit with core dump | ✓ | ✗ | ✓ |
-| `Kill()` | `k` | SIGKILL | Force kill | ✓ | ✓ | ✓ |
-| `Pause()` | `p` | SIGSTOP | Pause process | ✓ | ✓ | ✓ |
-| `Cont()` | `c` | SIGCONT | Continue process | ✓ | ✓ | ✓ |
-| `ExitSupervise()` | `x` | - | Terminate supervise | ✓ | ✓ | ✓ |
+| Method | Byte | Signal | Description | runit | daemontools | s6 | systemd |
+|--------|------|--------|-------------|-------|-------------|-----|---------|
+| `Up()` / `Start()` | `u` | - | Start service (want up) | ✓ | ✓ | ✓ | ✓ |
+| `Once()` | `o` | - | Run service once | ✓ | ✗ | ✓ | ✓ |
+| `Down()` / `Stop()` | `d` | - | Stop service (want down) | ✓ | ✓ | ✓ | ✓ |
+| `Restart()` | - | - | Stop then start service | ✓ | ✓ | ✓ | ✓ |
+| `Term()` | `t` | SIGTERM | Graceful termination | ✓ | ✓ | ✓ | ✓ |
+| `Interrupt()` | `i` | SIGINT | Interrupt | ✓ | ✓ | ✓ | ✓ |
+| `HUP()` | `h` | SIGHUP | Reload configuration | ✓ | ✓ | ✓ | ✓ |
+| `Alarm()` | `a` | SIGALRM | Alarm signal | ✓ | ✓ | ✓ | ✓ |
+| `Quit()` | `q` | SIGQUIT | Quit with core dump | ✓ | ✗ | ✓ | ✓ |
+| `USR1()` | `1` | SIGUSR1 | User signal 1 | ✓ | ✓ | ✓ | ✓ |
+| `USR2()` | `2` | SIGUSR2 | User signal 2 | ✓ | ✓ | ✓ | ✓ |
+| `Kill()` | `k` | SIGKILL | Force kill | ✓ | ✓ | ✓ | ✓ |
+| `Pause()` | `p` | SIGSTOP | Pause process | ✓ | ✓ | ✓ | ✓ |
+| `Cont()` | `c` | SIGCONT | Continue process | ✓ | ✓ | ✓ | ✓ |
+| `ExitSupervise()` | `x` | - | Terminate supervise | ✓ | ✓ | ✓ | N/A |
 
 ## Status Binary Format
 
@@ -306,7 +351,7 @@ Byte 19:     Run flag (non-zero = normally up)
 
 ## Error Handling
 
-The library provides typed errors. See [`OpError`](https://pkg.go.dev/github.com/axondata/go-runit#OpError) and the error variables in the [API documentation](https://pkg.go.dev/github.com/axondata/go-runit#pkg-variables).
+The library provides typed errors. See [`OpError`](https://pkg.go.dev/github.com/axondata/go-svcmgr#OpError) and the error variables in the [API documentation](https://pkg.go.dev/github.com/axondata/go-svcmgr#pkg-variables).
 
 ## Testing
 

@@ -1,12 +1,23 @@
 //go:build !linux && !darwin
 
-package runit
+package svcmgr
 
 import (
 	"context"
 	"errors"
 )
 
-func (c *Client) Watch(ctx context.Context) (<-chan WatchEvent, func() error, error) {
+// Watch for ClientRunit - not supported on this platform
+func (c *ClientRunit) Watch(ctx context.Context) (<-chan WatchEvent, WatchCleanupFunc, error) {
+	return nil, nil, errors.New("watch not supported on this platform")
+}
+
+// Watch for ClientDaemontools - not supported on this platform
+func (c *ClientDaemontools) Watch(ctx context.Context) (<-chan WatchEvent, WatchCleanupFunc, error) {
+	return nil, nil, errors.New("watch not supported on this platform")
+}
+
+// Watch for ClientS6 - not supported on this platform
+func (c *ClientS6) Watch(ctx context.Context) (<-chan WatchEvent, WatchCleanupFunc, error) {
 	return nil, nil, errors.New("watch not supported on this platform")
 }

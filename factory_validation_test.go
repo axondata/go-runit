@@ -1,4 +1,4 @@
-package runit
+package svcmgr
 
 import (
 	"context"
@@ -39,39 +39,39 @@ func TestOperationValidation(t *testing.T) {
 	}{
 		{
 			name:      "runit allows Once",
-			config:    RunitConfig(),
+			config:    ConfigRunit(),
 			operation: OpOnce,
 			wantErr:   false,
 		},
 		{
 			name:      "daemontools blocks Once",
-			config:    DaemontoolsConfig(),
+			config:    ConfigDaemontools(),
 			operation: OpOnce,
 			wantErr:   true,
 			errMsg:    "not supported by daemontools",
 		},
 		{
 			name:      "daemontools blocks Quit",
-			config:    DaemontoolsConfig(),
+			config:    ConfigDaemontools(),
 			operation: OpQuit,
 			wantErr:   true,
 			errMsg:    "not supported by daemontools",
 		},
 		{
 			name:      "s6 allows Once",
-			config:    S6Config(),
+			config:    ConfigS6(),
 			operation: OpOnce,
 			wantErr:   false,
 		},
 		{
 			name:      "s6 allows Quit",
-			config:    S6Config(),
+			config:    ConfigS6(),
 			operation: OpQuit,
 			wantErr:   false,
 		},
 		{
 			name:      "all systems allow Up",
-			config:    DaemontoolsConfig(),
+			config:    ConfigDaemontools(),
 			operation: OpUp,
 			wantErr:   false,
 		},
@@ -79,15 +79,36 @@ func TestOperationValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create client with config
-			client, err := NewClientWithConfig(tmpDir, tt.config)
+			// Create client based on service type
+			var client ServiceClient
+			switch tt.config.Type {
+			case ServiceTypeRunit:
+				client, err = NewClientRunit(tmpDir)
+			case ServiceTypeDaemontools:
+				client, err = NewClientDaemontools(tmpDir)
+			case ServiceTypeS6:
+				client, err = NewClientS6(tmpDir)
+			default:
+				t.Fatalf("Unknown service type: %v", tt.config.Type)
+			}
 			if err != nil {
 				t.Fatalf("Failed to create client: %v", err)
 			}
 
-			// Try to send the operation
+			// Try to perform the operation
 			ctx := context.Background()
-			err = client.send(ctx, tt.operation)
+			switch tt.operation {
+			case OpOnce:
+				err = client.Once(ctx)
+			case OpQuit:
+				err = client.Quit(ctx)
+			case OpPause:
+				err = client.Pause(ctx)
+			case OpCont:
+				err = client.Continue(ctx)
+			default:
+				err = client.Up(ctx) // Default operation
+			}
 
 			if tt.wantErr {
 				// Should get validation error
@@ -119,23 +140,23 @@ func TestClientWithoutConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create client without config (standard New function)
-	client, err := New(tmpDir)
+	// Create client using default runit client
+	client, err := NewClientRunit(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
 
-	// Should have nil config
-	if client.Config != nil {
-		t.Error("Expected nil config for standard client")
+	// Should have service directory set
+	if client.ServiceDir != tmpDir {
+		t.Errorf("Expected service directory %s, got %s", tmpDir, client.ServiceDir)
 	}
 
-	// All operations should be allowed (no validation)
+	// Runit client should support all operations
+	// Test that Once operation is available (runit supports it)
 	ctx := context.Background()
-
-	// This will fail due to no supervise process, but shouldn't have validation error
-	err = client.send(ctx, OpOnce)
+	err = client.Once(ctx)
+	// Will fail due to no supervise process, but that's ok - we're just checking it's callable
 	if err != nil && strings.Contains(err.Error(), "not supported") {
-		t.Errorf("Unexpected validation error without config: %v", err)
+		t.Errorf("Once operation should be supported by runit: %v", err)
 	}
 }

@@ -1,6 +1,6 @@
 //go:build devtree_cmd
 
-package runit
+package svcmgr
 
 import (
 	"fmt"
