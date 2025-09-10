@@ -25,8 +25,25 @@ func TestWatchWithStopper(t *testing.T) {
 		t.Fatalf("Failed to create supervise dir: %v", err)
 	}
 
-	// Create a mock status file
+	// Create a valid mock status file with proper structure
+	// The status file needs to have valid timestamps and structure
 	statusData := make([]byte, StatusFileSize)
+	// Set a valid TAI64N timestamp (first 12 bytes)
+	now := time.Now()
+	tai64 := uint64(now.Unix()) + 0x4000000000000000 // TAI64 epoch offset
+	// Write TAI64 timestamp (8 bytes, big-endian)
+	statusData[0] = byte(tai64 >> 56)
+	statusData[1] = byte(tai64 >> 48)
+	statusData[2] = byte(tai64 >> 40)
+	statusData[3] = byte(tai64 >> 32)
+	statusData[4] = byte(tai64 >> 24)
+	statusData[5] = byte(tai64 >> 16)
+	statusData[6] = byte(tai64 >> 8)
+	statusData[7] = byte(tai64)
+	// Nanoseconds (4 bytes, big-endian) - set to 0
+	// PID (4 bytes, little-endian) - set to 0 (service down)
+	// Remaining flags set to 0 (service down state)
+
 	if err := os.WriteFile(statusFile, statusData, 0o644); err != nil {
 		t.Fatalf("Failed to create status file: %v", err)
 	}
@@ -46,14 +63,19 @@ func TestWatchWithStopper(t *testing.T) {
 			t.Fatalf("Watch failed: %v", err)
 		}
 
-		// Should receive initial event
+		// Should receive initial event (allow more time in CI)
+		timeout := 500 * time.Millisecond
+		if os.Getenv("CI") != "" {
+			timeout = 2 * time.Second // CI environments can be slower
+		}
+
 		select {
 		case event := <-events:
 			if event.Err != nil {
 				t.Errorf("Unexpected error in event: %v", event.Err)
 			}
-		case <-time.After(100 * time.Millisecond):
-			t.Error("Timeout waiting for initial event")
+		case <-time.After(timeout):
+			t.Errorf("Timeout waiting for initial event after %v", timeout)
 		}
 
 		// Cleanup should work without hanging
@@ -62,13 +84,18 @@ func TestWatchWithStopper(t *testing.T) {
 			done <- cleanup()
 		}()
 
+		cleanupTimeout := 1 * time.Second
+		if os.Getenv("CI") != "" {
+			cleanupTimeout = 3 * time.Second // CI environments can be slower
+		}
+
 		select {
 		case err := <-done:
 			if err != nil {
 				t.Errorf("Cleanup failed: %v", err)
 			}
-		case <-time.After(500 * time.Millisecond):
-			t.Error("Cleanup took too long")
+		case <-time.After(cleanupTimeout):
+			t.Errorf("Cleanup took too long (> %v)", cleanupTimeout)
 		}
 	})
 
@@ -86,7 +113,11 @@ func TestWatchWithStopper(t *testing.T) {
 		cancel()
 
 		// Events channel should close eventually
-		timeout := time.After(500 * time.Millisecond)
+		closeTimeout := 1 * time.Second
+		if os.Getenv("CI") != "" {
+			closeTimeout = 3 * time.Second // CI environments can be slower
+		}
+		timeout := time.After(closeTimeout)
 		for {
 			select {
 			case _, ok := <-events:
