@@ -12,7 +12,7 @@ import (
 )
 
 func TestIntegrationS6(t *testing.T) {
-	runit.RequireS6(t)
+	svcmgr.RequireS6(t)
 
 	t.Run("basic_operations", func(t *testing.T) {
 		// Create a test service directory
@@ -26,7 +26,7 @@ func TestIntegrationS6(t *testing.T) {
 		// 3. Test all operations (s6 supports everything)
 		// 4. Verify s6-specific behavior
 
-		client, err := runit.NewClient(serviceDir, runit.ServiceTypeS6)
+		client, err := svcmgr.NewClient(serviceDir, svcmgr.ServiceTypeS6)
 		if err == nil {
 			// Test that all operations are allowed for s6
 			ctx := context.Background()
@@ -38,4 +38,3 @@ func TestIntegrationS6(t *testing.T) {
 		}
 	})
 }
-

@@ -19,14 +19,17 @@ type StateParser interface {
 // RunitStateParser parses Runit status files (20 bytes)
 type RunitStateParser struct{}
 
+// Name returns the parser name
 func (p *RunitStateParser) Name() string {
 	return "runit"
 }
 
+// ValidateSize checks if the status file size is valid
 func (p *RunitStateParser) ValidateSize(size int) bool {
 	return size == RunitStatusSize
 }
 
+// Parse parses the status data and returns a Status
 func (p *RunitStateParser) Parse(data []byte) (Status, error) {
 	if len(data) != RunitStatusSize {
 		return Status{}, fmt.Errorf("invalid runit status size: %d bytes (expected %d)", len(data), RunitStatusSize)
@@ -85,14 +88,17 @@ func (p *RunitStateParser) Parse(data []byte) (Status, error) {
 // DaemontoolsStateParser parses Daemontools status files (18 bytes)
 type DaemontoolsStateParser struct{}
 
+// Name returns the parser name
 func (p *DaemontoolsStateParser) Name() string {
 	return "daemontools"
 }
 
+// ValidateSize checks if the status file size is valid
 func (p *DaemontoolsStateParser) ValidateSize(size int) bool {
 	return size == DaemontoolsStatusSize
 }
 
+// Parse parses the status data and returns a Status
 func (p *DaemontoolsStateParser) Parse(data []byte) (Status, error) {
 	if len(data) != DaemontoolsStatusSize {
 		return Status{}, fmt.Errorf("invalid daemontools status size: %d bytes (expected %d)", len(data), DaemontoolsStatusSize)
@@ -143,14 +149,17 @@ func (p *DaemontoolsStateParser) Parse(data []byte) (Status, error) {
 // S6StateParserPre220 parses S6 status files for versions < 2.20.0 (35 bytes)
 type S6StateParserPre220 struct{}
 
+// Name returns the parser name
 func (p *S6StateParserPre220) Name() string {
 	return "s6-pre-2.20.0"
 }
 
+// ValidateSize checks if the status file size is valid
 func (p *S6StateParserPre220) ValidateSize(size int) bool {
 	return size == S6StatusSizePre220
 }
 
+// Parse parses the status data and returns a Status
 func (p *S6StateParserPre220) Parse(data []byte) (Status, error) {
 	if len(data) != S6StatusSizePre220 {
 		return Status{}, fmt.Errorf("invalid s6 pre-2.20.0 status size: %d bytes (expected %d)", len(data), S6StatusSizePre220)
@@ -205,14 +214,17 @@ func (p *S6StateParserPre220) Parse(data []byte) (Status, error) {
 // S6StateParserCurrent parses S6 status files for versions >= 2.20.0 (43 bytes)
 type S6StateParserCurrent struct{}
 
+// Name returns the parser name
 func (p *S6StateParserCurrent) Name() string {
 	return "s6-current"
 }
 
+// ValidateSize checks if the status file size is valid
 func (p *S6StateParserCurrent) ValidateSize(size int) bool {
 	return size == S6StatusSizeCurrent
 }
 
+// Parse parses the status data and returns a Status
 func (p *S6StateParserCurrent) Parse(data []byte) (Status, error) {
 	if len(data) != S6StatusSizeCurrent {
 		return Status{}, fmt.Errorf("invalid s6 current status size: %d bytes (expected %d)", len(data), S6StatusSizeCurrent)
@@ -300,9 +312,10 @@ func GetStateParser(serviceType ServiceType, dataSize int) (StateParser, error) 
 
 	case ServiceTypeS6:
 		// Choose parser based on data size
-		if dataSize == S6StatusSizePre220 {
+		switch dataSize {
+		case S6StatusSizePre220:
 			return &S6StateParserPre220{}, nil
-		} else if dataSize == S6StatusSizeCurrent {
+		case S6StatusSizeCurrent:
 			return &S6StateParserCurrent{}, nil
 		}
 		return nil, fmt.Errorf("invalid s6 status size: %d (expected %d or %d)",

@@ -12,7 +12,7 @@ import (
 )
 
 func TestIntegrationDaemontools(t *testing.T) {
-	runit.RequireDaemontools(t)
+	svcmgr.RequireDaemontools(t)
 
 	t.Run("basic_operations", func(t *testing.T) {
 		// Create a test service directory
@@ -26,7 +26,7 @@ func TestIntegrationDaemontools(t *testing.T) {
 		// 3. Test operations that daemontools supports
 		// 4. Verify that unsupported operations (Once, Quit) fail appropriately
 
-		client, err := runit.NewClient(serviceDir, runit.ServiceTypeDaemontools)
+		client, err := svcmgr.NewClient(serviceDir, svcmgr.ServiceTypeDaemontools)
 		if err == nil {
 			// Test that Once operation is blocked
 			ctx := context.Background()
@@ -37,4 +37,3 @@ func TestIntegrationDaemontools(t *testing.T) {
 		}
 	})
 }
-

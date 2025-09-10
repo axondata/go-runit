@@ -16,8 +16,8 @@ import (
 // TestIntegrationCrashedStateDetection verifies we can detect the crashed state
 // This test uses the 'once' command to prevent automatic restart
 func TestIntegrationCrashedStateDetection(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "crash-test")
@@ -47,8 +47,8 @@ exit 1`
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -60,7 +60,7 @@ exit 1`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.NewClientRunit(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -81,7 +81,7 @@ exit 1`
 
 		// After 'once' and exit, service should be down (not crashed)
 		// because we told it to run once
-		if status.State != runit.StateDown {
+		if status.State != svcmgr.StateDown {
 			t.Logf("After 'once' and exit: state=%v (expected down)", status.State)
 		}
 
@@ -104,9 +104,9 @@ exit 1`
 			t.Logf("Status check %d: state=%v pid=%d want_up=%v",
 				i, status.State, status.PID, status.Flags.WantUp)
 
-			if status.State == runit.StateCrashed {
+			if status.State == svcmgr.StateCrashed {
 				crashedSeen = true
-				t.Log("Successfully detected StateCrashed!")
+				t.Log("Successfully detected svcmgr.StateCrashed!")
 				break
 			}
 
@@ -138,8 +138,8 @@ exit 1`
 		}
 
 		// Should be down with want_down
-		if status.State != runit.StateDown {
-			t.Errorf("Expected StateDown, got %v", status.State)
+		if status.State != svcmgr.StateDown {
+			t.Errorf("Expected svcmgr.StateDown, got %v", status.State)
 		}
 		if status.Flags.WantUp {
 			t.Error("Expected WantUp=false when down")
@@ -175,8 +175,8 @@ exit 1`
 
 // TestIntegrationRestartBehavior verifies runit's restart behavior
 func TestIntegrationRestartBehavior(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "restart-test")
@@ -215,8 +215,8 @@ exit 1`
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -228,7 +228,7 @@ exit 1`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.NewClientRunit(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -263,8 +263,8 @@ exit 1`
 		t.Errorf("failed to get final status: %v", err)
 	}
 
-	if status.State != runit.StateDown {
-		t.Errorf("Expected StateDown after Down(), got %v", status.State)
+	if status.State != svcmgr.StateDown {
+		t.Errorf("Expected svcmgr.StateDown after Down(), got %v", status.State)
 	}
 
 	t.Logf("Final state: %v, PID: %d", status.State, status.PID)

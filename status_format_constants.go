@@ -42,7 +42,7 @@ const (
 const (
 	S6StatusSizePre220  = 35 // Pre-2.20.0 format size
 	S6StatusSizeCurrent = 43 // Current format size (>= 2.20.0)
-	
+
 	// S6MaxStatusSize is the maximum size of any S6 status format.
 	// We use this when allocating buffers to ensure we can read any S6 status file version.
 	// This allows us to read the actual file size and then determine which format to use for decoding.

@@ -23,8 +23,8 @@ func FuzzClientOperations(f *testing.F) {
 	if err != nil {
 		f.Skip("Cannot create unix sockets on this platform")
 	}
-	listener.Close()
-	os.Remove(testSocketPath)
+	_ = listener.Close()
+	_ = os.Remove(testSocketPath)
 
 	// Add seed corpus with valid operations
 	ops := []byte{'u', 'd', 'o', 't', 'k', 'h', 'i', 'a', 'q', 'p', 'c', 'x'}
@@ -44,8 +44,8 @@ func FuzzClientOperations(f *testing.F) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { os.RemoveAll(tmpDir) })
-		
+		t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
+
 		superviseDir := filepath.Join(tmpDir, "supervise")
 		if err := os.MkdirAll(superviseDir, 0o755); err != nil {
 			t.Fatal(err)

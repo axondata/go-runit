@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const testRunScript = "#!/bin/sh\nexec sleep 1000\n"
+
 // SupervisionTestSuite provides common test infrastructure for supervision systems
 type SupervisionTestSuite struct {
 	suite.Suite
@@ -30,10 +32,9 @@ func (s *SupervisionTestSuite) SetupSuite() {
 func (s *SupervisionTestSuite) TearDownSuite() {
 	// Clean up temp directory
 	if s.tempDir != "" {
-		os.RemoveAll(s.tempDir)
+		_ = os.RemoveAll(s.tempDir)
 	}
 }
-
 
 // TestStatusDecodeIntegration tests status decoding against real supervisors
 func TestStatusDecodeIntegration(t *testing.T) {
@@ -50,12 +51,12 @@ func (s *StatusDecodeTestSuite) TestRunitStatusDecode() {
 
 	// Create a test service directory
 	serviceDir := filepath.Join(s.tempDir, "test-runit-service")
-	require.NoError(s.T(), os.MkdirAll(serviceDir, 0755))
+	require.NoError(s.T(), os.MkdirAll(serviceDir, 0o755))
 
 	// Create a simple run script
 	runScript := filepath.Join(serviceDir, "run")
-	runContent := "#!/bin/sh\nexec sleep 1000\n"
-	require.NoError(s.T(), os.WriteFile(runScript, []byte(runContent), 0755))
+	runContent := testRunScript
+	require.NoError(s.T(), os.WriteFile(runScript, []byte(runContent), 0o755))
 
 	// Start runsv
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -64,8 +65,8 @@ func (s *StatusDecodeTestSuite) TestRunitStatusDecode() {
 	cmd := exec.CommandContext(ctx, "runsv", serviceDir)
 	require.NoError(s.T(), cmd.Start())
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory to be created
@@ -121,12 +122,12 @@ func (s *StatusDecodeTestSuite) TestDaemontoolsStatusDecode() {
 
 	// Create a test service directory
 	serviceDir := filepath.Join(s.tempDir, "test-daemontools-service")
-	require.NoError(s.T(), os.MkdirAll(serviceDir, 0755))
+	require.NoError(s.T(), os.MkdirAll(serviceDir, 0o755))
 
 	// Create a simple run script
 	runScript := filepath.Join(serviceDir, "run")
-	runContent := "#!/bin/sh\nexec sleep 1000\n"
-	require.NoError(s.T(), os.WriteFile(runScript, []byte(runContent), 0755))
+	runContent := testRunScript
+	require.NoError(s.T(), os.WriteFile(runScript, []byte(runContent), 0o755))
 
 	// Start supervise
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -135,8 +136,8 @@ func (s *StatusDecodeTestSuite) TestDaemontoolsStatusDecode() {
 	cmd := exec.CommandContext(ctx, "supervise", serviceDir)
 	require.NoError(s.T(), cmd.Start())
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory to be created
@@ -167,12 +168,12 @@ func (s *StatusDecodeTestSuite) TestS6StatusDecode() {
 
 	// Create a test service directory
 	serviceDir := filepath.Join(s.tempDir, "test-s6-service")
-	require.NoError(s.T(), os.MkdirAll(serviceDir, 0755))
+	require.NoError(s.T(), os.MkdirAll(serviceDir, 0o755))
 
 	// Create a simple run script
 	runScript := filepath.Join(serviceDir, "run")
-	runContent := "#!/bin/sh\nexec sleep 1000\n"
-	require.NoError(s.T(), os.WriteFile(runScript, []byte(runContent), 0755))
+	runContent := testRunScript
+	require.NoError(s.T(), os.WriteFile(runScript, []byte(runContent), 0o755))
 
 	// Start s6-supervise
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -181,8 +182,8 @@ func (s *StatusDecodeTestSuite) TestS6StatusDecode() {
 	cmd := exec.CommandContext(ctx, "s6-supervise", serviceDir)
 	require.NoError(s.T(), cmd.Start())
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory to be created

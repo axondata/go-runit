@@ -118,7 +118,7 @@ func StartSupervisor(ctx context.Context, serviceType ServiceType, serviceDir st
 	}
 
 	// If we got here, supervise directory wasn't created
-	sp.Stop()
+	_ = sp.Stop()
 	return nil, fmt.Errorf("supervisor started but supervise directory not created after 5 seconds")
 }
 
@@ -168,7 +168,7 @@ func WaitForSupervise(serviceDir string, timeout time.Duration) error {
 }
 
 // CreateTestServiceWithSupervisor creates a service and starts its supervisor
-func CreateTestServiceWithSupervisor(ctx context.Context, sys SupervisionSystem, serviceName string, logger *TestLogger) (client interface{}, supervisor *SupervisorProcess, cleanup func() error, err error) {
+func CreateTestServiceWithSupervisor(ctx context.Context, sys SupervisionSystem, serviceName string, _ *TestLogger) (client interface{}, supervisor *SupervisorProcess, cleanup func() error, err error) {
 	serviceDir := fmt.Sprintf("/tmp/test-services/%s", serviceName)
 
 	// Build the service
@@ -182,7 +182,7 @@ func CreateTestServiceWithSupervisor(ctx context.Context, sys SupervisionSystem,
 	// Start the supervisor
 	supervisor, err = StartSupervisor(ctx, sys.Type, serviceDir)
 	if err != nil {
-		os.RemoveAll(serviceDir)
+		_ = os.RemoveAll(serviceDir)
 		return nil, nil, nil, fmt.Errorf("failed to start supervisor: %w", err)
 	}
 
@@ -198,20 +198,20 @@ func CreateTestServiceWithSupervisor(ctx context.Context, sys SupervisionSystem,
 	case ServiceTypeSystemd:
 		c, err = NewClientSystemd(serviceName), nil
 	default:
-		supervisor.Stop()
-		os.RemoveAll(serviceDir)
+		_ = supervisor.Stop()
+		_ = os.RemoveAll(serviceDir)
 		return nil, nil, nil, fmt.Errorf("unsupported service type: %v", sys.Config.Type)
 	}
 	if err != nil {
-		supervisor.Stop()
-		os.RemoveAll(serviceDir)
+		_ = supervisor.Stop()
+		_ = os.RemoveAll(serviceDir)
 		return nil, nil, nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
 	// Create cleanup function
 	cleanup = func() error {
 		if supervisor != nil {
-			supervisor.Stop()
+			_ = supervisor.Stop()
 		}
 		return os.RemoveAll(serviceDir)
 	}

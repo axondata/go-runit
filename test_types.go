@@ -29,6 +29,7 @@ type TestLogger struct {
 	file    *os.File
 }
 
+// NewTestLogger creates a new test logger instance
 func NewTestLogger(t *testing.T, logFile string, verbose bool) (*TestLogger, error) {
 	var file *os.File
 	var err error
@@ -47,6 +48,7 @@ func NewTestLogger(t *testing.T, logFile string, verbose bool) (*TestLogger, err
 	}, nil
 }
 
+// Log writes a log message to both test output and log file
 func (l *TestLogger) Log(format string, args ...interface{}) {
 	if l == nil {
 		return
@@ -66,17 +68,19 @@ func (l *TestLogger) Log(format string, args ...interface{}) {
 
 	if l.file != nil {
 		l.mu.Lock()
-		fmt.Fprintln(l.file, logLine)
+		_, _ = fmt.Fprintln(l.file, logLine)
 		l.mu.Unlock()
 	}
 }
 
+// Close closes the log file if it's open
 func (l *TestLogger) Close() {
 	if l != nil && l.file != nil {
-		l.file.Close()
+		_ = l.file.Close()
 	}
 }
 
+// GetLogs returns all logged messages
 func (l *TestLogger) GetLogs() []string {
 	if l == nil {
 		return nil

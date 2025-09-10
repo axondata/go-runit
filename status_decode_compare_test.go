@@ -20,19 +20,20 @@ func parseRunitSv(output string) (pid int, state string, err error) {
 	output = strings.TrimSpace(output)
 
 	// Parse state and PID
-	if strings.HasPrefix(output, "run:") {
+	switch {
+	case strings.HasPrefix(output, "run:"):
 		state = "run"
 		re := regexp.MustCompile(`\(pid (\d+)\)`)
 		if matches := re.FindStringSubmatch(output); len(matches) > 1 {
 			pid, _ = strconv.Atoi(matches[1])
 		}
-	} else if strings.HasPrefix(output, "down:") {
-		state = "down"
-	} else if strings.HasPrefix(output, "pause:") {
+	case strings.HasPrefix(output, "down:"):
+		state = opDownStr
+	case strings.HasPrefix(output, "pause:"):
 		state = "pause"
-	} else if strings.HasPrefix(output, "finish:") {
+	case strings.HasPrefix(output, "finish:"):
 		state = "finish"
-	} else {
+	default:
 		state = strings.SplitN(output, ":", 2)[0]
 	}
 
@@ -44,15 +45,16 @@ func parseRunitSv(output string) (pid int, state string, err error) {
 func parseDaemontoolsSvstat(output string) (pid int, state string, err error) {
 	output = strings.TrimSpace(output)
 
-	if strings.Contains(output, ": up") {
+	switch {
+	case strings.Contains(output, ": up"):
 		state = "up"
 		re := regexp.MustCompile(`\(pid (\d+)\)`)
 		if matches := re.FindStringSubmatch(output); len(matches) > 1 {
 			pid, _ = strconv.Atoi(matches[1])
 		}
-	} else if strings.Contains(output, ": down") {
-		state = "down"
-	} else if strings.Contains(output, ": paused") {
+	case strings.Contains(output, ": down"):
+		state = opDownStr
+	case strings.Contains(output, ": paused"):
 		state = "paused"
 	}
 
@@ -141,7 +143,7 @@ func TestStatusDecodeAgainstRealTools(t *testing.T) {
 			script := `#!/bin/sh
 exec sleep 3600
 `
-			if err := os.WriteFile(runScript, []byte(script), 0755); err != nil {
+			if err := os.WriteFile(runScript, []byte(script), 0o755); err != nil {
 				t.Fatal(err)
 			}
 
@@ -154,8 +156,8 @@ exec sleep 3600
 				t.Fatalf("Failed to start %s: %v", supervisorCmd, err)
 			}
 			defer func() {
-				supervisor.Process.Kill()
-				supervisor.Wait()
+				_ = supervisor.Process.Kill()
+				_ = supervisor.Wait()
 			}()
 
 			// Wait for supervisor to create status file
@@ -218,7 +220,9 @@ exec sleep 3600
 
 					// Get output from real tool
 					// Append service directory to command args
-					cmdArgs := append(tool.svstatCmd[1:], serviceDir)
+					cmdArgs := make([]string, len(tool.svstatCmd[1:]))
+					copy(cmdArgs, tool.svstatCmd[1:])
+					cmdArgs = append(cmdArgs, serviceDir)
 					cmd := exec.Command(tool.svstatCmd[0], cmdArgs...)
 					output, err := cmd.Output()
 					if err != nil {
@@ -272,7 +276,7 @@ exec sleep 3600
 					}
 
 					if ts.cleanup != nil {
-						ts.cleanup()
+						_ = ts.cleanup()
 					}
 				})
 			}

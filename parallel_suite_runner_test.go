@@ -1,3 +1,4 @@
+//go:build linux
 // +build linux
 
 package svcmgr
@@ -17,21 +18,21 @@ import (
 
 // TestSuite manages scanning supervisors for the entire test suite
 type TestSuite struct {
-	mu         sync.RWMutex
-	baseDir    string
+	mu          sync.RWMutex
+	baseDir     string
 	supervisors map[ServiceType]*SuiteSupervision
-	counter    int64
+	counter     int64
 }
 
 // SuiteSupervision represents a running scanning supervisor for a service type
 type SuiteSupervision struct {
-	Type       ServiceType
-	Dir        string
-	Process    *exec.Cmd
-	Available  bool
-	RefCount   int32  // Atomic counter of active services
-	Services   map[string]*ServiceRef // Track active services
-	mu         sync.Mutex
+	Type      ServiceType
+	Dir       string
+	Process   *exec.Cmd
+	Available bool
+	RefCount  int32                  // Atomic counter of active services
+	Services  map[string]*ServiceRef // Track active services
+	mu        sync.Mutex
 }
 
 // ServiceRef tracks a service with reference counting
@@ -57,7 +58,7 @@ func NewTestSuite(t *testing.T) (*TestSuite, error) {
 		}
 
 		serviceDir := filepath.Join(baseDir, st.String())
-		if err := os.MkdirAll(serviceDir, 0755); err != nil {
+		if err := os.MkdirAll(serviceDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create service dir for %s: %w", st, err)
 		}
 
@@ -129,14 +130,14 @@ func (ts *TestSuite) stopSupervisor(supervisor *SuiteSupervision) error {
 	}
 
 	// Wait for it to exit
-	supervisor.Process.Wait()
+	_ = supervisor.Process.Wait()
 	supervisor.Process = nil
 
 	return nil
 }
 
 // CreateService creates a new service directory for testing and returns a release function
-func (ts *TestSuite) CreateService(t *testing.T, serviceType ServiceType, name string) (string, ServiceClient, func(), error) {
+func (ts *TestSuite) CreateService(_ *testing.T, serviceType ServiceType, name string) (string, ServiceClient, func(), error) {
 	ts.mu.RLock()
 	supervisor, exists := ts.supervisors[serviceType]
 	ts.mu.RUnlock()
@@ -203,7 +204,7 @@ func (ts *TestSuite) CreateService(t *testing.T, serviceType ServiceType, name s
 	}
 
 	if err != nil {
-		os.RemoveAll(serviceDir)
+		_ = os.RemoveAll(serviceDir)
 		return "", nil, nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
@@ -231,13 +232,13 @@ func (ts *TestSuite) CreateService(t *testing.T, serviceType ServiceType, name s
 				newSupervisorCount := atomic.AddInt32(&supervisor.RefCount, -1)
 
 				// Clean up the service directory
-				os.RemoveAll(serviceDir)
+				_ = os.RemoveAll(serviceDir)
 
 				supervisor.mu.Unlock()
 
 				// Stop the scanning supervisor if no more services
 				if newSupervisorCount == 0 {
-					ts.stopSupervisor(supervisor)
+					_ = ts.stopSupervisor(supervisor)
 				}
 				return
 			}
@@ -327,8 +328,8 @@ func (ts *TestSuite) Cleanup() {
 	for _, supervisor := range ts.supervisors {
 		if supervisor.Process != nil {
 			// Kill the process group to stop scanner and all supervisors
-			syscall.Kill(-supervisor.Process.Process.Pid, syscall.SIGTERM)
-			supervisor.Process.Wait()
+			_ = syscall.Kill(-supervisor.Process.Process.Pid, syscall.SIGTERM)
+			_ = supervisor.Process.Wait()
 		}
 	}
 }

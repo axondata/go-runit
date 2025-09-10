@@ -36,12 +36,12 @@ func NewMockSupervisorWithType(serviceDir string, serviceType ServiceType) (*Moc
 	}
 
 	// Create supervise directory
-	if err := os.MkdirAll(m.SuperviseDir, 0755); err != nil {
+	if err := os.MkdirAll(m.SuperviseDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating supervise dir: %w", err)
 	}
 
 	// Create named pipes (FIFOs)
-	if err := os.MkdirAll(m.SuperviseDir, 0755); err != nil {
+	if err := os.MkdirAll(m.SuperviseDir, 0o755); err != nil {
 		return nil, err
 	}
 
@@ -61,32 +61,32 @@ func NewMockSupervisorWithType(serviceDir string, serviceType ServiceType) (*Moc
 	now := time.Now()
 	tai64 := uint64(now.Unix()) + TAI64Offset // TAI64 epoch offset
 
-	if m.ServiceType == ServiceTypeS6 {
-		// S6 has a different format - see below
-	} else if m.ServiceType == ServiceTypeDaemontools {
+	if m.ServiceType == ServiceTypeDaemontools {
 		// Daemontools: TAI64 timestamp (8 bytes, big-endian)
 		binary.BigEndian.PutUint64(statusData[DaemontoolsTAI64Start:DaemontoolsTAI64End], tai64)
-	} else {
+	} else if m.ServiceType != ServiceTypeS6 {
 		// Runit: TAI64 timestamp (8 bytes, big-endian)
+		// S6 timestamp is handled later in its specific section
 		binary.BigEndian.PutUint64(statusData[RunitTAI64Start:RunitTAI64End], tai64)
 	}
 
 	// Set initial values based on system type
-	if m.ServiceType == ServiceTypeS6 {
+	switch m.ServiceType {
+	case ServiceTypeS6:
 		// S6 format (35 bytes) - Pre-2.20.0 format
 		// Initial state: all zeros except for want flag
 		// PID (big-endian uint16)
 		binary.BigEndian.PutUint16(statusData[S6PIDStartPre220:S6PIDEndPre220], 0)
 		// Flags
 		statusData[S6FlagsBytePre220] = 0 // All flags off initially
-	} else if m.ServiceType == ServiceTypeDaemontools {
+	case ServiceTypeDaemontools:
 		// Daemontools format (18 bytes)
 		// PID (little-endian)
 		binary.LittleEndian.PutUint32(statusData[DaemontoolsPIDStart:DaemontoolsPIDEnd], 0)
 		// Flags
 		statusData[DaemontoolsStatusFlag] = 0 // reserved/status
 		statusData[DaemontoolsWantFlag] = 'd' // want
-	} else {
+	default:
 		// Runit format (20 bytes)
 		// PID (little-endian)
 		binary.LittleEndian.PutUint32(statusData[RunitPIDStart:RunitPIDEnd], 0)
@@ -100,12 +100,12 @@ func NewMockSupervisorWithType(serviceDir string, serviceType ServiceType) (*Moc
 	// Initial flags are already set above based on type
 
 	// Write status file
-	if err := os.WriteFile(m.StatusFile, statusData, 0644); err != nil {
+	if err := os.WriteFile(m.StatusFile, statusData, 0o644); err != nil {
 		return nil, fmt.Errorf("creating status file: %w", err)
 	}
 
 	// Create control as a regular file (not a real FIFO, but enough for client creation)
-	if err := os.WriteFile(m.ControlFile, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(m.ControlFile, []byte{}, 0o644); err != nil {
 		return nil, fmt.Errorf("creating control file: %w", err)
 	}
 
@@ -130,7 +130,8 @@ func (m *MockSupervisor) UpdateStatus(running bool, pid int) error {
 	tai64 := uint64(now.Unix()) + TAI64Offset // TAI64 epoch offset
 
 	// Update based on system type
-	if m.ServiceType == ServiceTypeS6 {
+	switch m.ServiceType {
+	case ServiceTypeS6:
 		// Old S6 format (35 bytes, S6 2.12.x and earlier)
 		// TAI64N timestamp
 		binary.BigEndian.PutUint64(statusData[S6TimestampStartPre220:S6TimestampStartPre220+8], tai64)
@@ -158,7 +159,7 @@ func (m *MockSupervisor) UpdateStatus(running bool, pid int) error {
 			flags |= S6FlagNormallyUp // normally up flag
 		}
 		statusData[S6FlagsBytePre220] = flags
-	} else if m.ServiceType == ServiceTypeDaemontools {
+	case ServiceTypeDaemontools:
 		// Daemontools format (18 bytes)
 		// TAI64N timestamp (big-endian)
 		binary.BigEndian.PutUint64(statusData[DaemontoolsTAI64Start:DaemontoolsTAI64End], tai64)
@@ -175,7 +176,7 @@ func (m *MockSupervisor) UpdateStatus(running bool, pid int) error {
 		} else {
 			statusData[DaemontoolsWantFlag] = 'd' // want
 		}
-	} else {
+	default:
 		// Runit format (20 bytes)
 		// TAI64N timestamp (big-endian)
 		binary.BigEndian.PutUint64(statusData[RunitTAI64Start:RunitTAI64End], tai64)
@@ -201,7 +202,7 @@ func (m *MockSupervisor) UpdateStatus(running bool, pid int) error {
 
 	// All flags have been set above
 
-	return os.WriteFile(m.StatusFile, statusData, 0644)
+	return os.WriteFile(m.StatusFile, statusData, 0o644)
 }
 
 // Cleanup removes the mock supervise directory
@@ -228,15 +229,15 @@ func CreateMockService(serviceName string, config *ServiceConfig) (serviceDir st
 	}
 	mock, err = NewMockSupervisorWithType(serviceDir, serviceType)
 	if err != nil {
-		os.RemoveAll(serviceDir)
+		_ = os.RemoveAll(serviceDir)
 		return "", nil, nil, fmt.Errorf("failed to create mock supervisor: %w", err)
 	}
 
 	cleanup = func() {
 		if mock != nil {
-			mock.Cleanup()
+			_ = mock.Cleanup()
 		}
-		os.RemoveAll(serviceDir)
+		_ = os.RemoveAll(serviceDir)
 	}
 
 	return serviceDir, mock, cleanup, nil

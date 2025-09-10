@@ -11,6 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"vawter.tech/stopper"
+)
+
+const (
+	activeState  = "active"
+	runningState = "running"
 )
 
 // ClientSystemd provides control operations for systemd services
@@ -67,7 +74,9 @@ func (c *ClientSystemd) execSystemctl(ctx context.Context, args ...string) (stri
 	var cmd *exec.Cmd
 
 	serviceName := fmt.Sprintf("%s.service", c.ServiceName)
-	fullArgs := append(args, serviceName)
+	fullArgs := make([]string, len(args))
+	copy(fullArgs, args)
+	fullArgs = append(fullArgs, serviceName)
 
 	if c.UseSudo {
 		sudoArgs := append([]string{c.SystemctlPath}, fullArgs...)
@@ -203,7 +212,7 @@ func (c *ClientSystemd) StatusSystemd(ctx context.Context) (*StatusSystemd, erro
 	}
 
 	// Determine if service is running
-	status.Running = status.ActiveState == "active" && status.SubState == "running"
+	status.Running = status.ActiveState == activeState && status.SubState == runningState
 
 	// Calculate uptime if running
 	if status.Running && !status.StartTime.IsZero() {
@@ -226,7 +235,7 @@ func (c *ClientSystemd) IsRunning(ctx context.Context) (bool, error) {
 		return false, err
 	}
 
-	return strings.TrimSpace(output) == "active", nil
+	return strings.TrimSpace(output) == activeState, nil
 }
 
 // Enable enables the service to start on boot
@@ -292,7 +301,7 @@ func (s *StatusSystemd) MapToStatus() *Status {
 
 	// Map systemd states to runit-like states
 	switch s.ActiveState {
-	case "active":
+	case activeState:
 		if s.SubState == "running" {
 			status.State = StateRunning
 		}
@@ -544,41 +553,52 @@ func (c *ClientSystemd) Watch(ctx context.Context) (<-chan WatchEvent, WatchClea
 	// For systemd, we poll the status periodically since there's no file to watch
 	ch := make(chan WatchEvent, 10)
 
+	// Create stopper context for managing goroutine lifecycle
+	sctx := stopper.WithContext(ctx)
+
 	ticker := time.NewTicker(c.WatchInterval)
-	done := make(chan struct{})
+
+	// Register cleanup with stopper
+	sctx.Defer(func() {
+		ticker.Stop()
+		close(ch)
+	})
 
 	var lastState string
 
-	stop := func() error {
-		close(done)
-		ticker.Stop()
-		close(ch)
-		return nil
+	// Create cleanup function using stopper
+	cleanup := func() error {
+		sctx.Stop(100 * time.Millisecond) // Graceful stop with 100ms grace period
+		return sctx.Wait()
 	}
 
-	go func() {
-		defer ticker.Stop()
-		defer close(ch)
-
+	// Launch polling goroutine using stopper
+	sctx.Go(func(sctx *stopper.Context) error {
 		// Get initial status
 		if status, err := c.Status(ctx); err == nil {
 			lastState = status.State.String()
-			ch <- WatchEvent{Status: status}
+			if !sctx.IsStopping() {
+				select {
+				case ch <- WatchEvent{Status: status}:
+				case <-sctx.Stopping():
+					return nil
+				}
+			}
 		}
 
-		for {
+		for !sctx.IsStopping() {
 			select {
-			case <-ctx.Done():
-				return
-			case <-done:
-				return
+			case <-sctx.Stopping():
+				return nil
 			case <-ticker.C:
 				status, err := c.Status(ctx)
 				if err != nil {
-					select {
-					case ch <- WatchEvent{Err: err}:
-					case <-ctx.Done():
-						return
+					if !sctx.IsStopping() {
+						select {
+						case ch <- WatchEvent{Err: err}:
+						case <-sctx.Stopping():
+							return nil
+						}
 					}
 					continue
 				}
@@ -586,17 +606,20 @@ func (c *ClientSystemd) Watch(ctx context.Context) (<-chan WatchEvent, WatchClea
 				currentState := status.State.String()
 				if currentState != lastState {
 					lastState = currentState
-					select {
-					case ch <- WatchEvent{Status: status}:
-					case <-ctx.Done():
-						return
+					if !sctx.IsStopping() {
+						select {
+						case ch <- WatchEvent{Status: status}:
+						case <-sctx.Stopping():
+							return nil
+						}
 					}
 				}
 			}
 		}
-	}()
+		return nil
+	})
 
-	return ch, stop, nil
+	return ch, cleanup, nil
 }
 
 // Ensure ClientSystemd implements ServiceClient

@@ -122,30 +122,34 @@ install-tools:
 
 # Install Go to /usr/local/go
 install-go:
-	@echo "Installing Go..."
-	@GO_VERSION="1.25.1" && \
-	ARCH=$$(uname -m) && \
-	OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && \
-	if [ "$$ARCH" = "x86_64" ]; then ARCH="amd64"; \
-	elif [ "$$ARCH" = "aarch64" ]; then ARCH="arm64"; \
-	elif [ "$$ARCH" = "armv7l" ]; then ARCH="armv6l"; fi && \
-	FILENAME="go$$GO_VERSION.$$OS-$$ARCH.tar.gz" && \
-	echo "Downloading Go $$GO_VERSION for $$OS/$$ARCH..." && \
-	wget -q --show-progress "https://go.dev/dl/$$FILENAME" -O /tmp/$$FILENAME && \
-	echo "Extracting Go to /usr/local..." && \
-	sudo rm -rf /usr/local/go && \
-	sudo tar -C /usr/local -xzf /tmp/$$FILENAME && \
-	rm /tmp/$$FILENAME && \
-	echo "Creating symlinks in /usr/local/bin..." && \
-	sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go && \
-	sudo ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt && \
-	echo "Go $$GO_VERSION installed successfully!" && \
-	echo "Version: $$(go version)" && \
-	echo "" && \
-	echo "Add the following to your shell profile if not already present:" && \
-	echo "  export PATH=/usr/local/go/bin:\$$PATH" && \
-	echo "  export GOPATH=\$$HOME/go" && \
-	echo "  export PATH=\$$GOPATH/bin:\$$PATH"
+	@if which go > /dev/null 2>&1; then \
+		echo "Go is already installed: $$(go version)"; \
+	else \
+		echo "Installing Go..."; \
+		GO_VERSION="1.25.1" && \
+		ARCH=$$(uname -m) && \
+		OS=$$(uname -s | tr '[:upper:]' '[:lower:]') && \
+		if [ "$$ARCH" = "x86_64" ]; then ARCH="amd64"; \
+		elif [ "$$ARCH" = "aarch64" ]; then ARCH="arm64"; \
+		elif [ "$$ARCH" = "armv7l" ]; then ARCH="armv6l"; fi && \
+		FILENAME="go$$GO_VERSION.$$OS-$$ARCH.tar.gz" && \
+		echo "Downloading Go $$GO_VERSION for $$OS/$$ARCH..." && \
+		wget -q --show-progress "https://go.dev/dl/$$FILENAME" -O /tmp/$$FILENAME && \
+		echo "Extracting Go to /usr/local..." && \
+		sudo rm -rf /usr/local/go && \
+		sudo tar -C /usr/local -xzf /tmp/$$FILENAME && \
+		rm /tmp/$$FILENAME && \
+		echo "Creating symlinks in /usr/local/bin..." && \
+		sudo ln -sf /usr/local/go/bin/go /usr/local/bin/go && \
+		sudo ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt && \
+		echo "Go $$GO_VERSION installed successfully!" && \
+		echo "Version: $$(go version)" && \
+		echo "" && \
+		echo "Add the following to your shell profile if not already present:" && \
+		echo "  export PATH=/usr/local/go/bin:\$$PATH" && \
+		echo "  export GOPATH=\$$HOME/go" && \
+		echo "  export PATH=\$$GOPATH/bin:\$$PATH"; \
+	fi
 
 # Install golangci-lint based on OS
 install-golangci-lint:
@@ -164,7 +168,11 @@ install-golangci-lint:
 	@echo "golangci-lint installed successfully"
 
 # Fix import grouping with goimports
-goimports: install-go
+goimports:
+	@if ! which goimports > /dev/null 2>&1; then \
+		echo "Installing goimports..."; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
+	fi
 	@echo "Fixing import grouping..."
 	goimports -local github.com/axondata -w .
 	@echo "Import grouping fixed"

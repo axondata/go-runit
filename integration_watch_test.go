@@ -18,9 +18,11 @@ import (
 )
 
 // TestIntegrationWatchFunctionality tests the fsnotify-based watch feature
+//
+//nolint:gocyclo // Complex test with multiple scenarios
 func TestIntegrationWatchFunctionality(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "watch-test")
@@ -53,8 +55,8 @@ exit 0`
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -66,7 +68,7 @@ exit 0`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.NewClientRunit(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -79,12 +81,12 @@ exit 0`
 		if err != nil {
 			t.Fatalf("failed to start watch: %v", err)
 		}
-		defer stop()
+		defer func() { _ = stop() }()
 
 		// Track events
 		var eventsMu sync.Mutex
-		receivedEvents := []runit.WatchEvent{}
-		stateSequence := []runit.State{}
+		receivedEvents := []svcmgr.WatchEvent{}
+		stateSequence := []svcmgr.State{}
 
 		// Goroutine to collect events
 		go func() {
@@ -144,7 +146,7 @@ exit 0`
 		}
 
 		// Verify we saw different states
-		statesSet := make(map[runit.State]bool)
+		statesSet := make(map[svcmgr.State]bool)
 		for _, state := range stateSequence {
 			statesSet[state] = true
 		}
@@ -161,7 +163,7 @@ exit 0`
 	t.Run("WatchDebouncing", func(t *testing.T) {
 		// Test that rapid changes are debounced
 		// Note: We no longer have WithWatchDebounce option
-		client2, err := runit.NewClientRunit(serviceDir)
+		client2, err := svcmgr.NewClientRunit(serviceDir)
 		if err != nil {
 			t.Fatalf("failed to create client with custom debounce: %v", err)
 		}
@@ -173,7 +175,7 @@ exit 0`
 		if err != nil {
 			t.Fatalf("failed to start watch: %v", err)
 		}
-		defer stop()
+		defer func() { _ = stop() }()
 
 		var eventCountMu sync.Mutex
 		eventCount := 0
@@ -192,7 +194,7 @@ exit 0`
 
 		// Send rapid signals that should be debounced
 		for i := 0; i < 5; i++ {
-			client2.HUP(context.Background())
+			_ = client2.HUP(context.Background())
 			time.Sleep(20 * time.Millisecond) // Less than debounce time
 		}
 
@@ -217,7 +219,7 @@ exit 0`
 
 		// Collect some events
 		go func() {
-			for range events {
+			for range events { //nolint:revive // Intentionally draining channel
 				// Drain events
 			}
 		}()
@@ -248,11 +250,11 @@ exit 0`
 		if err != nil {
 			t.Fatalf("failed to start watch: %v", err)
 		}
-		defer stop()
+		defer func() { _ = stop() }()
 
 		done := make(chan bool)
 		go func() {
-			for range events {
+			for range events { //nolint:revive // Intentionally draining channel
 				// Drain events
 			}
 			done <- true
@@ -273,8 +275,8 @@ exit 0`
 
 // TestIntegrationWatchDeduplication tests that identical states are deduplicated
 func TestIntegrationWatchDeduplication(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 	serviceDir := filepath.Join(tmpDir, "dedup-test")
@@ -301,8 +303,8 @@ exec sleep 300`
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -314,7 +316,7 @@ exec sleep 300`
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.NewClientRunit(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -333,7 +335,7 @@ exec sleep 300`
 	if err != nil {
 		t.Fatalf("failed to start watch: %v", err)
 	}
-	defer stop()
+	defer func() { _ = stop() }()
 
 	var mu sync.Mutex
 	eventCount := 0

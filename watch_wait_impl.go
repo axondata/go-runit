@@ -8,13 +8,13 @@ import (
 
 // waitImpl provides a common implementation for Wait across all client types
 func waitImpl(ctx context.Context, client ServiceClient, states []State) (Status, error) {
-	// If states is nil or empty, wait for any change
-	if states == nil || len(states) == 0 {
+	// If states is empty, wait for any change
+	if len(states) == 0 {
 		events, cleanup, err := client.Watch(ctx)
 		if err != nil {
 			return Status{}, err
 		}
-		defer cleanup()
+		defer func() { _ = cleanup() }()
 
 		select {
 		case event := <-events:
@@ -43,7 +43,7 @@ func waitImpl(ctx context.Context, client ServiceClient, states []State) (Status
 	if err != nil {
 		return Status{}, err
 	}
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	for {
 		select {

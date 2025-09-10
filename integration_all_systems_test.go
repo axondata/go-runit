@@ -87,14 +87,13 @@ func TestAllSupervisionSystems(t *testing.T) {
 
 	// Test each system using proper subtests
 	for _, system := range systems {
-		system := system // Capture for closure
 		t.Run(system.Name, func(t *testing.T) {
 			t.Parallel() // Run systems in parallel
-			
+
 			if !system.Available {
 				t.Skipf("%s not available", system.Name)
 			}
-			
+
 			result := testSupervisionSystemWithT(t, system, logDir, mainLogger)
 			report.Systems = append(report.Systems, result)
 			report.Summary[result.System+"_passed"] = result.Passed
@@ -237,7 +236,6 @@ func testSupervisionSystemWithT(t *testing.T, sys SupervisionSystem, logDir stri
 	testSuites := getTestSuites(sys)
 
 	for _, suite := range testSuites {
-		suite := suite // Capture for closure
 		t.Run(suite.name, func(t *testing.T) {
 			testResult := TestResult{
 				Name:    suite.name,
@@ -284,95 +282,6 @@ func testSupervisionSystemWithT(t *testing.T, sys SupervisionSystem, logDir stri
 	return result
 }
 
-func testSupervisionSystem(sys SupervisionSystem, logDir string, mainLogger *TestLogger) SystemTestResult {
-	result := SystemTestResult{
-		System:    sys.Name,
-		Available: sys.Available,
-		Started:   time.Now(),
-		Results:   []TestResult{},
-	}
-
-	if !sys.Available {
-		result.Skipped = 1
-		result.Completed = time.Now()
-		result.Duration = result.Completed.Sub(result.Started)
-		mainLogger.Log("Skipping %s: not available", sys.Name)
-		return result
-	}
-
-	// Create system-specific log directory
-	sysLogDir := filepath.Join(logDir, sys.Name)
-	if err := os.MkdirAll(sysLogDir, 0o755); err != nil {
-		mainLogger.Log("Failed to create log directory for %s: %v", sys.Name, err)
-		result.Failed = 1
-		result.Completed = time.Now()
-		result.Duration = result.Completed.Sub(result.Started)
-		return result
-	}
-
-	// Create system-specific logger
-	sysLogFile := filepath.Join(sysLogDir, "tests.log")
-	sysLogger, err := NewTestLogger(nil, sysLogFile, false)
-	if err != nil {
-		mainLogger.Log("Failed to create logger for %s: %v", sys.Name, err)
-		result.Failed = 1
-		result.Completed = time.Now()
-		result.Duration = result.Completed.Sub(result.Started)
-		return result
-	}
-	defer sysLogger.Close()
-
-	mainLogger.Log("=== Testing %s ===", strings.ToUpper(sys.Name))
-	sysLogger.Log("Starting tests for %s", sys.Name)
-
-	// Run test suites
-	ctx := context.Background()
-	testSuites := getTestSuites(sys)
-
-	for _, suite := range testSuites {
-		testResult := TestResult{
-			Name:    suite.name,
-			Started: time.Now(),
-			Logs:    []string{},
-		}
-
-		sysLogger.Log("Running test: %s", suite.name)
-
-		// Create test-specific logger
-		testLogFile := filepath.Join(sysLogDir, fmt.Sprintf("%s.log", suite.name))
-		testLogger, _ := NewTestLogger(nil, testLogFile, false)
-
-		err := suite.fn(ctx, sys, testLogger)
-		testResult.Completed = time.Now()
-		testResult.Duration = testResult.Completed.Sub(testResult.Started)
-		testResult.Logs = testLogger.logs
-		testLogger.Close()
-
-		if err != nil {
-			testResult.Success = false
-			testResult.Error = err.Error()
-			sysLogger.Log("FAILED: %s - %v", suite.name, err)
-			mainLogger.Log("  %s/%s: FAILED - %v", sys.Name, suite.name, err)
-			result.Failed++
-		} else {
-			testResult.Success = true
-			sysLogger.Log("PASSED: %s (duration: %v)", suite.name, testResult.Duration)
-			mainLogger.Log("  %s/%s: PASSED (%v)", sys.Name, suite.name, testResult.Duration)
-			result.Passed++
-		}
-
-		result.Results = append(result.Results, testResult)
-	}
-
-	result.Completed = time.Now()
-	result.Duration = result.Completed.Sub(result.Started)
-
-	mainLogger.Log("%s: %d passed, %d failed, %d skipped (total: %v)",
-		sys.Name, result.Passed, result.Failed, result.Skipped, result.Duration)
-
-	return result
-}
-
 type testSuite struct {
 	name string
 	fn   func(context.Context, SupervisionSystem, *TestLogger) error
@@ -401,6 +310,7 @@ func getTestSuites(sys SupervisionSystem) []testSuite {
 	return suites
 }
 
+//nolint:gocyclo // Comprehensive test function that needs to cover many scenarios
 func testBasicLifecycle(ctx context.Context, sys SupervisionSystem, logger *TestLogger) error {
 	serviceName := fmt.Sprintf("test-%s-lifecycle-%d", sys.Name, time.Now().Unix())
 	logger.Log("[%s] Testing basic lifecycle: %s", strings.ToUpper(sys.Name), serviceName)
@@ -413,13 +323,13 @@ func testBasicLifecycle(ctx context.Context, sys SupervisionSystem, logger *Test
 
 	// Skip actual service operations in mock mode
 	if isMockMode(sys) {
-		defer cleanup()
+		defer func() { _ = cleanup() }()
 		logger.Log("[%s] Mock mode - skipping actual service operations", strings.ToUpper(sys.Name))
 		logger.Log("[%s] Mock test completed - client creation successful", strings.ToUpper(sys.Name))
 		return nil
 	}
 
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	// Test start
 	logger.Log("Starting service")
@@ -552,7 +462,7 @@ func testServiceControl(ctx context.Context, sys SupervisionSystem, logger *Test
 		return fmt.Errorf("failed to create test service: %w", err)
 	}
 
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	// Test various control operations
 	operations := []struct {
@@ -654,11 +564,11 @@ trap 'echo "$(date) SIGNAL_RECEIVED: SIGUSR2" >> "$LOG_FILE"' USR2
 trap 'echo "$(date) SIGNAL_RECEIVED: SIGTERM" >> "$LOG_FILE"; exit 0' TERM
 while true; do sleep 1; done
 `
-		if err := os.WriteFile(signalLoggerScript, []byte(scriptContent), 0755); err != nil {
+		if err := os.WriteFile(signalLoggerScript, []byte(scriptContent), 0o755); err != nil {
 			logger.Log("[%s] Failed to create signal logger script: %v", strings.ToUpper(sys.Name), err)
 			return fmt.Errorf("failed to create signal logger script: %w", err)
 		}
-		defer os.Remove(signalLoggerScript)
+		defer func() { _ = os.Remove(signalLoggerScript) }()
 	}
 
 	// Create signal log file path
@@ -680,7 +590,7 @@ while true; do sleep 1; done
 		return fmt.Errorf("failed to create test service: %w", err)
 	}
 
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	// Start service
 	logger.Log("[%s] Starting service", strings.ToUpper(sys.Name))
@@ -766,7 +676,7 @@ while true; do sleep 1; done
 	// Read and log the signal log file
 	if signalLogData, err := os.ReadFile(signalLogFile); err == nil {
 		logger.Log("[%s] Signal logger output:\n%s", strings.ToUpper(sys.Name), string(signalLogData))
-		os.Remove(signalLogFile)
+		_ = os.Remove(signalLogFile)
 	} else {
 		logger.Log("[%s] Could not read signal log file: %v", strings.ToUpper(sys.Name), err)
 	}
@@ -791,7 +701,7 @@ func testServiceStatus(ctx context.Context, sys SupervisionSystem, logger *TestL
 		return fmt.Errorf("failed to create test service: %w", err)
 	}
 
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	// Start service
 	logger.Log("Starting service")
@@ -853,7 +763,7 @@ func testServiceRestart(ctx context.Context, sys SupervisionSystem, logger *Test
 	if err != nil {
 		return fmt.Errorf("failed to create test service: %w", err)
 	}
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	// Skip actual restart operations in mock mode since they won't work
 	if isMockMode(sys) {
@@ -1113,7 +1023,7 @@ func testRunitOnce(ctx context.Context, sys SupervisionSystem, logger *TestLogge
 	if err != nil {
 		return fmt.Errorf("failed to create test service: %w", err)
 	}
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 
 	client, ok := clientInterface.(*ClientRunit)
 	if !ok {
@@ -1136,7 +1046,7 @@ func testRunitOnce(ctx context.Context, sys SupervisionSystem, logger *TestLogge
 	return nil
 }
 
-func testS6Specific(ctx context.Context, sys SupervisionSystem, logger *TestLogger) error {
+func testS6Specific(_ context.Context, sys SupervisionSystem, logger *TestLogger) error {
 	if sys.Type != ServiceTypeS6 {
 		return nil
 	}
@@ -1146,7 +1056,7 @@ func testS6Specific(ctx context.Context, sys SupervisionSystem, logger *TestLogg
 	return nil
 }
 
-func testSystemdUnit(ctx context.Context, sys SupervisionSystem, logger *TestLogger) error {
+func testSystemdUnit(_ context.Context, sys SupervisionSystem, logger *TestLogger) error {
 	if sys.Type != ServiceTypeSystemd {
 		return nil
 	}
@@ -1157,7 +1067,7 @@ func testSystemdUnit(ctx context.Context, sys SupervisionSystem, logger *TestLog
 	builder.WithCmd([]string{"/bin/sh", "-c", "echo 'Test service'; sleep 10"})
 	builder.WithCwd("/var/lib/myapp")
 	builder.WithEnv("ENV_VAR", "value")
-	builder.WithUmask(0022)
+	builder.WithUmask(0o022)
 	builder.WithChpst(func(c *ChpstConfig) {
 		c.User = "myuser"
 		c.Group = "mygroup"

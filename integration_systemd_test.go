@@ -157,7 +157,7 @@ func TestUnitGenerationBuilderSystemd(t *testing.T) {
 		"ENV_VAR":     "value",
 		"ANOTHER_VAR": "another value",
 	})
-	builder.WithUmask(0022)
+	builder.WithUmask(0o022)
 	builder.WithChpst(func(c *ChpstConfig) {
 		c.User = "myuser"
 		c.Group = "mygroup"

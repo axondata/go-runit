@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const systemdUnitDir = "/run/systemd/system"
+
 // shouldUseMocks determines if we should use mock supervisors
 func shouldUseMocks() bool {
 	return os.Getenv("USE_MOCK_SUPERVISORS") == "1" || os.Getenv("TEST_MODE") == "mock"
@@ -32,7 +34,7 @@ func createTestServiceWithSupervisorAndCmd(ctx context.Context, sys SupervisionS
 
 		systemdBuilder := NewBuilderSystemd(builder)
 		if os.Geteuid() == 0 {
-			systemdBuilder.UnitDir = "/run/systemd/system"
+			systemdBuilder.UnitDir = systemdUnitDir
 			systemdBuilder.UseSudo = false
 		}
 
@@ -102,7 +104,7 @@ func createTestServiceWithSupervisorAndCmd(ctx context.Context, sys SupervisionS
 		logger.Log("[%s] Falling back to mock supervisor", strings.ToUpper(sys.Name))
 
 		// Clean up the service directory created for real supervisor
-		os.RemoveAll(serviceDir)
+		_ = os.RemoveAll(serviceDir)
 
 		// Create mock service instead
 		mockServiceDir, mock, cleanupFn, mockErr := CreateMockService(serviceName, sys.Config)
@@ -132,7 +134,7 @@ func createTestServiceWithSupervisorAndCmd(ctx context.Context, sys SupervisionS
 		}
 
 		// Simulate service being ready for mock
-		mock.UpdateStatus(true, os.Getpid())
+		_ = mock.UpdateStatus(true, os.Getpid())
 
 		cleanup := func() error {
 			cleanupFn()
@@ -144,7 +146,7 @@ func createTestServiceWithSupervisorAndCmd(ctx context.Context, sys SupervisionS
 
 	cleanup = func() error {
 		if supervisor != nil {
-			supervisor.Stop()
+			_ = supervisor.Stop()
 		}
 		return os.RemoveAll(serviceDir)
 	}
@@ -160,11 +162,11 @@ func createTestServiceWithSupervisorAndCmd(ctx context.Context, sys SupervisionS
 	case ServiceTypeSystemd:
 		c, err = NewClientSystemd(serviceName), nil
 	default:
-		cleanup()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("unsupported service type: %v", sys.Config.Type)
 	}
 	if err != nil {
-		cleanup()
+		_ = cleanup()
 		return nil, nil, fmt.Errorf("failed to create client: %w", err)
 	}
 

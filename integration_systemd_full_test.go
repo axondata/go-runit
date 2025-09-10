@@ -166,7 +166,7 @@ func testBasicServiceLifecycle(ctx context.Context, logger *TestLogger) error {
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -245,7 +245,7 @@ func testServiceWithEnvironment(ctx context.Context, logger *TestLogger) error {
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -309,7 +309,7 @@ func testServiceWithResourceLimits(ctx context.Context, logger *TestLogger) erro
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -388,7 +388,7 @@ func testServiceSignalHandling(ctx context.Context, logger *TestLogger) error {
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -461,7 +461,7 @@ func testServiceWithLogging(ctx context.Context, logger *TestLogger) error {
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -537,7 +537,7 @@ func testServiceRestartSystemd(ctx context.Context, logger *TestLogger) error {
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -604,7 +604,7 @@ func testServiceRestartSystemd(ctx context.Context, logger *TestLogger) error {
 	return client.Stop(ctx)
 }
 
-func testServiceDependencies(ctx context.Context, logger *TestLogger) error {
+func testServiceDependencies(_ context.Context, logger *TestLogger) error {
 	logger.Log("Testing service dependencies")
 
 	// This is a placeholder for dependency testing
@@ -624,7 +624,7 @@ func testServiceFailureHandling(ctx context.Context, logger *TestLogger) error {
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -690,7 +690,7 @@ func testConcurrentServices(ctx context.Context, logger *TestLogger) error {
 
 		systemdBuilder := NewBuilderSystemd(builder)
 		if os.Geteuid() == 0 {
-			systemdBuilder.UnitDir = "/run/systemd/system"
+			systemdBuilder.UnitDir = systemdUnitDir
 			systemdBuilder.UseSudo = false
 		}
 
@@ -707,7 +707,7 @@ func testConcurrentServices(ctx context.Context, logger *TestLogger) error {
 			builder := NewServiceBuilder(name, "")
 			systemdBuilder := NewBuilderSystemd(builder)
 			if os.Geteuid() == 0 {
-				systemdBuilder.UnitDir = "/run/systemd/system"
+				systemdBuilder.UnitDir = systemdUnitDir
 				systemdBuilder.UseSudo = false
 			}
 			if err := systemdBuilder.Remove(ctx); err != nil {
@@ -720,7 +720,7 @@ func testConcurrentServices(ctx context.Context, logger *TestLogger) error {
 	logger.Log("Starting all services concurrently")
 	startErrors := make(chan error, numServices)
 	for i, client := range clients {
-		go func(idx int, c *ClientSystemd) {
+		go func(_ int, c *ClientSystemd) {
 			startErrors <- c.Start(ctx)
 		}(i, client)
 	}
@@ -749,7 +749,7 @@ func testConcurrentServices(ctx context.Context, logger *TestLogger) error {
 	logger.Log("Stopping all services concurrently")
 	stopErrors := make(chan error, numServices)
 	for i, client := range clients {
-		go func(idx int, c *ClientSystemd) {
+		go func(_ int, c *ClientSystemd) {
 			stopErrors <- c.Stop(ctx)
 		}(i, client)
 	}
@@ -782,7 +782,7 @@ func testServiceStatusMonitoring(ctx context.Context, logger *TestLogger) error 
 
 	systemdBuilder := NewBuilderSystemd(builder)
 	if os.Geteuid() == 0 {
-		systemdBuilder.UnitDir = "/run/systemd/system"
+		systemdBuilder.UnitDir = systemdUnitDir
 		systemdBuilder.UseSudo = false
 	}
 
@@ -863,20 +863,4 @@ func writeJSONReport(filename string, report *TestReport) error {
 		return err
 	}
 	return renameio.WriteFile(filename, data, 0o644)
-}
-
-// Helper function to run a single test with logging
-func runTest(t *testing.T, name string, fn func(*testing.T, *TestLogger) error) {
-	t.Run(name, func(t *testing.T) {
-		logFile := fmt.Sprintf("/tmp/%s-%s.log", name, time.Now().Format("20060102-150405"))
-		logger, err := NewTestLogger(t, logFile, true)
-		if err != nil {
-			t.Fatalf("Failed to create logger: %v", err)
-		}
-		defer logger.Close()
-
-		if err := fn(t, logger); err != nil {
-			t.Errorf("Test failed: %v", err)
-		}
-	})
 }

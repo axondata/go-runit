@@ -91,7 +91,7 @@ func TestWaitNilSafety(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
-	var nilStates []State = nil
+	var nilStates []State
 	_, _ = client.Wait(ctx, nilStates)
 
 	// Test passed if we didn't panic

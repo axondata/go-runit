@@ -15,9 +15,9 @@ import (
 
 // TestIntegrationSingleService tests a single runit service lifecycle
 func TestIntegrationSingleService(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
-	runit.RequireTool(t, "runsvdir")
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
+	svcmgr.RequireTool(t, "runsvdir")
 
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
@@ -52,8 +52,8 @@ exit 0
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory to be created
@@ -66,7 +66,7 @@ exit 0
 	}
 
 	// Create client for the service
-	client, err := runit.NewClientRunit(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -96,8 +96,8 @@ exit 0
 		if status.PID == 0 {
 			t.Error("service should be running but PID is 0")
 		}
-		if status.State != runit.StateRunning {
-			t.Errorf("expected state %v, got %v", runit.StateRunning, status.State)
+		if status.State != svcmgr.StateRunning {
+			t.Errorf("expected state %v, got %v", svcmgr.StateRunning, status.State)
 		}
 		t.Logf("Service started: pid=%d state=%v", status.PID, status.State)
 	})
@@ -138,8 +138,8 @@ exit 0
 		if status.PID != 0 {
 			t.Errorf("service should be stopped but PID is %d", status.PID)
 		}
-		if status.State != runit.StateDown {
-			t.Errorf("expected state %v, got %v", runit.StateDown, status.State)
+		if status.State != svcmgr.StateDown {
+			t.Errorf("expected state %v, got %v", svcmgr.StateDown, status.State)
 		}
 		t.Logf("Service stopped: state=%v", status.State)
 	})
@@ -147,14 +147,14 @@ exit 0
 
 // TestIntegrationServiceWithExitCodes tests services with different exit codes
 func TestIntegrationServiceWithExitCodes(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	testCases := []struct {
 		name     string
 		script   string
 		wantUp   bool
-		expected runit.State
+		expected svcmgr.State
 	}{
 		{
 			name: "exit_0",
@@ -163,7 +163,7 @@ exec 2>&1
 echo "Exiting with 0"
 exit 0`,
 			wantUp:   true,
-			expected: runit.StateCrashed, // want up but process exits
+			expected: svcmgr.StateCrashed, // want up but process exits
 		},
 		{
 			name: "exit_1",
@@ -172,7 +172,7 @@ exec 2>&1
 echo "Exiting with 1"
 exit 1`,
 			wantUp:   true,
-			expected: runit.StateCrashed,
+			expected: svcmgr.StateCrashed,
 		},
 		{
 			name: "long_running",
@@ -181,7 +181,7 @@ exec 2>&1
 echo "Long running service"
 exec sleep 300`,
 			wantUp:   true,
-			expected: runit.StateRunning,
+			expected: svcmgr.StateRunning,
 		},
 	}
 
@@ -207,8 +207,8 @@ exec sleep 300`,
 				t.Fatalf("failed to start runsv: %v", err)
 			}
 			defer func() {
-				cmd.Process.Kill()
-				cmd.Wait()
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
 			}()
 
 			// Wait for supervise directory
@@ -220,7 +220,7 @@ exec sleep 300`,
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			client, err := runit.NewClientRunit(serviceDir)
+			client, err := svcmgr.NewClientRunit(serviceDir)
 			if err != nil {
 				t.Fatalf("failed to create client: %v", err)
 			}
@@ -249,13 +249,13 @@ exec sleep 300`,
 
 // TestIntegrationServiceBuilder tests the ServiceBuilder functionality
 func TestIntegrationServiceBuilder(t *testing.T) {
-	runit.RequireNotShort(t)
-	runit.RequireRunit(t)
+	svcmgr.RequireNotShort(t)
+	svcmgr.RequireRunit(t)
 
 	tmpDir := t.TempDir()
 
 	// Build a service using ServiceBuilder
-	builder := runit.NewServiceBuilder("test-builder", tmpDir)
+	builder := svcmgr.NewServiceBuilder("test-builder", tmpDir)
 	builder.
 		WithCmd([]string{"/bin/sh", "-c", "while true; do echo 'Running'; sleep 1; done"}).
 		WithEnv("TEST_VAR", "test_value").
@@ -285,8 +285,8 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		t.Fatalf("failed to start runsv: %v", err)
 	}
 	defer func() {
-		cmd.Process.Kill()
-		cmd.Wait()
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 	}()
 
 	// Wait for supervise directory
@@ -298,7 +298,7 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	client, err := runit.NewClientRunit(serviceDir)
+	client, err := svcmgr.NewClientRunit(serviceDir)
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
 	}
@@ -314,7 +314,7 @@ func TestIntegrationServiceBuilder(t *testing.T) {
 		t.Errorf("failed to get status: %v", err)
 	}
 
-	if status.State != runit.StateRunning {
+	if status.State != svcmgr.StateRunning {
 		t.Errorf("built service not running: state=%v", status.State)
 	}
 	t.Logf("Built service running: pid=%d", status.PID)

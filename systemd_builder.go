@@ -55,7 +55,7 @@ func (b *BuilderSystemd) WithUnitDir(dir string) *BuilderSystemd {
 
 // BuildSystemdUnit generates the systemd unit file content
 func (b *BuilderSystemd) BuildSystemdUnit() (string, error) {
-	c := b.ServiceBuilder.config
+	c := b.config
 	if len(c.Cmd) == 0 {
 		return "", fmt.Errorf("command not specified")
 	}
@@ -161,7 +161,8 @@ func (b *BuilderSystemd) BuildSystemdUnit() (string, error) {
 	}
 
 	// Logging configuration
-	if c.Svlogd != nil {
+	switch {
+	case c.Svlogd != nil:
 		unit.WriteString("StandardOutput=journal\n")
 		unit.WriteString("StandardError=journal\n")
 
@@ -172,11 +173,11 @@ func (b *BuilderSystemd) BuildSystemdUnit() (string, error) {
 
 		// Note: svlogd size/rotation settings don't map directly
 		// journald handles its own rotation
-	} else if c.StderrPath != "" {
+	case c.StderrPath != "":
 		// Custom stderr redirection
 		unit.WriteString("StandardOutput=journal\n")
 		unit.WriteString(fmt.Sprintf("StandardError=file:%s\n", c.StderrPath))
-	} else {
+	default:
 		// Default logging
 		unit.WriteString("StandardOutput=journal\n")
 		unit.WriteString("StandardError=journal\n")
@@ -203,7 +204,7 @@ func (b *BuilderSystemd) BuildWithContext(ctx context.Context) error {
 	}
 
 	// Determine unit file path
-	unitName := fmt.Sprintf("%s.service", b.ServiceBuilder.config.Name)
+	unitName := fmt.Sprintf("%s.service", b.config.Name)
 	unitPath := filepath.Join(b.UnitDir, unitName)
 
 	// Write unit file
@@ -266,7 +267,7 @@ func (b *BuilderSystemd) reloadSystemd(ctx context.Context) error {
 
 // Enable enables the systemd service to start on boot
 func (b *BuilderSystemd) Enable(ctx context.Context) error {
-	serviceName := fmt.Sprintf("%s.service", b.ServiceBuilder.config.Name)
+	serviceName := fmt.Sprintf("%s.service", b.config.Name)
 
 	var cmd *exec.Cmd
 	if b.UseSudo {
@@ -288,12 +289,12 @@ func (b *BuilderSystemd) Enable(ctx context.Context) error {
 
 // Remove removes the systemd unit file
 func (b *BuilderSystemd) Remove(ctx context.Context) error {
-	serviceName := fmt.Sprintf("%s.service", b.ServiceBuilder.config.Name)
+	serviceName := fmt.Sprintf("%s.service", b.config.Name)
 	unitPath := filepath.Join(b.UnitDir, serviceName)
 
 	// Stop and disable the service first
 	client := &ClientSystemd{
-		ServiceName:   b.ServiceBuilder.config.Name,
+		ServiceName:   b.config.Name,
 		UseSudo:       b.UseSudo,
 		SudoCommand:   b.SudoCommand,
 		SystemctlPath: b.SystemctlPath,

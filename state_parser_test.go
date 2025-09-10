@@ -10,14 +10,14 @@ import (
 
 // TestCase represents a test case for state file parsing
 type StateParserTestCase struct {
-	Name         string
-	HexData      string
-	Parser       StateParser
-	ExpectedPID  int
+	Name          string
+	HexData       string
+	Parser        StateParser
+	ExpectedPID   int
 	ExpectedState State
-	Architecture string // e.g., "amd64", "arm64"
-	OS           string // e.g., "linux", "darwin"
-	Description  string // Additional context about the test
+	Architecture  string // e.g., "amd64", "arm64"
+	OS            string // e.g., "linux", "darwin"
+	Description   string // Additional context about the test
 }
 
 func TestRunitStateParser(t *testing.T) {
@@ -31,8 +31,8 @@ func TestRunitStateParser(t *testing.T) {
 			Description:  "Running service with PID 1234 on Linux AMD64",
 			Parser:       parser,
 			// TAI64 timestamp (8 bytes) + nanoseconds (4 bytes) + PID 1234 (4 bytes, little-endian) + flags: paused=0, want='u', term=0, run=1
-			HexData:      "4000000067890abc00000000d204000000750001",
-			ExpectedPID:  1234,
+			HexData:       "4000000067890abc00000000d204000000750001",
+			ExpectedPID:   1234,
 			ExpectedState: StateRunning,
 		},
 		{
@@ -42,8 +42,8 @@ func TestRunitStateParser(t *testing.T) {
 			Description:  "Down service (PID 0) on Linux AMD64",
 			Parser:       parser,
 			// TAI64 timestamp + nanoseconds + PID 0 + flags (want='d')
-			HexData:      "4000000067890abc000000000000000000640000",
-			ExpectedPID:  0,
+			HexData:       "4000000067890abc000000000000000000640000",
+			ExpectedPID:   0,
 			ExpectedState: StateDown,
 		},
 		{
@@ -53,8 +53,8 @@ func TestRunitStateParser(t *testing.T) {
 			Description:  "Paused service with PID 5678 on Linux ARM64",
 			Parser:       parser,
 			// TAI64 timestamp + nanoseconds + PID 5678 (little-endian) + paused=1, want='u', term=0, run=1
-			HexData:      "4000000067890abc000000002e16000001750001",
-			ExpectedPID:  5678,
+			HexData:       "4000000067890abc000000002e16000001750001",
+			ExpectedPID:   5678,
 			ExpectedState: StatePaused,
 		},
 		{
@@ -64,8 +64,8 @@ func TestRunitStateParser(t *testing.T) {
 			Description:  "Service finishing (terminating) with PID 9999",
 			Parser:       parser,
 			// TAI64 timestamp + nanoseconds + PID 9999 + flags (term=1)
-			HexData:      "4000000067890abc000000000f27000000750101",
-			ExpectedPID:  9999,
+			HexData:       "4000000067890abc000000000f27000000750101",
+			ExpectedPID:   9999,
 			ExpectedState: StateFinishing,
 		},
 	}
@@ -114,8 +114,8 @@ func TestDaemontoolsStateParser(t *testing.T) {
 			Description:  "Running service with PID 1234 on Linux AMD64",
 			Parser:       parser,
 			// TAI64 (8) + nano (4) + PID 1234 (little-endian) + status + want='u'
-			HexData:      "4000000067890abc00000000d20400000075",
-			ExpectedPID:  1234,
+			HexData:       "4000000067890abc00000000d20400000075",
+			ExpectedPID:   1234,
 			ExpectedState: StateRunning,
 		},
 		{
@@ -125,8 +125,8 @@ func TestDaemontoolsStateParser(t *testing.T) {
 			Description:  "Down service on Linux ARM64",
 			Parser:       parser,
 			// TAI64 + nano + PID 0 + status + want='d'
-			HexData:      "4000000067890abc00000000000000000064",
-			ExpectedPID:  0,
+			HexData:       "4000000067890abc00000000000000000064",
+			ExpectedPID:   0,
 			ExpectedState: StateDown,
 		},
 		{
@@ -136,8 +136,8 @@ func TestDaemontoolsStateParser(t *testing.T) {
 			Description:  "Service stopping (PID exists but want='d')",
 			Parser:       parser,
 			// TAI64 + nano + PID 4321 + status + want='d'
-			HexData:      "4000000067890abc00000000e11000000064",
-			ExpectedPID:  4321,
+			HexData:       "4000000067890abc00000000e11000000064",
+			ExpectedPID:   4321,
 			ExpectedState: StateStopping,
 		},
 	}
@@ -202,43 +202,43 @@ func TestS6StateParserPre220(t *testing.T) {
 
 	testCases := []StateParserTestCase{
 		{
-			Name:         "s6_pre220_running_linux_amd64",
-			Architecture: "amd64",
-			OS:           "linux",
-			Description:  "Running service with PID 12345 on Linux AMD64",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createPre220Data(12345, 0x0A)), // ready + normally up
-			ExpectedPID:  12345,
+			Name:          "s6_pre220_running_linux_amd64",
+			Architecture:  "amd64",
+			OS:            "linux",
+			Description:   "Running service with PID 12345 on Linux AMD64",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createPre220Data(12345, 0x0A)), // ready + normally up
+			ExpectedPID:   12345,
 			ExpectedState: StateRunning,
 		},
 		{
-			Name:         "s6_pre220_down_linux_arm64",
-			Architecture: "arm64",
-			OS:           "linux",
-			Description:  "Down service on Linux ARM64",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createPre220Data(0, 0x00)),
-			ExpectedPID:  0,
+			Name:          "s6_pre220_down_linux_arm64",
+			Architecture:  "arm64",
+			OS:            "linux",
+			Description:   "Down service on Linux ARM64",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createPre220Data(0, 0x00)),
+			ExpectedPID:   0,
 			ExpectedState: StateDown,
 		},
 		{
-			Name:         "s6_pre220_running_darwin_arm64",
-			Architecture: "arm64",
-			OS:           "darwin",
-			Description:  "Running service with PID 65535 on macOS ARM64",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createPre220Data(65535, 0x0A)),
-			ExpectedPID:  65535,
+			Name:          "s6_pre220_running_darwin_arm64",
+			Architecture:  "arm64",
+			OS:            "darwin",
+			Description:   "Running service with PID 65535 on macOS ARM64",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createPre220Data(65535, 0x0A)),
+			ExpectedPID:   65535,
 			ExpectedState: StateRunning,
 		},
 		{
-			Name:         "s6_pre220_bigpid_linux_amd64",
-			Architecture: "amd64",
-			OS:           "linux",
-			Description:  "Running service with large PID on Linux (testing 32-bit PID)",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createPre220Data(2147483647, 0x0A)), // Max 32-bit signed int
-			ExpectedPID:  2147483647,
+			Name:          "s6_pre220_bigpid_linux_amd64",
+			Architecture:  "amd64",
+			OS:            "linux",
+			Description:   "Running service with large PID on Linux (testing 32-bit PID)",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createPre220Data(2147483647, 0x0A)), // Max 32-bit signed int
+			ExpectedPID:   2147483647,
 			ExpectedState: StateRunning,
 		},
 	}
@@ -309,63 +309,63 @@ func TestS6StateParserCurrent(t *testing.T) {
 
 	testCases := []StateParserTestCase{
 		{
-			Name:         "s6_current_running_linux_amd64",
-			Architecture: "amd64",
-			OS:           "linux",
-			Description:  "Running service with PID 12345 on Linux AMD64",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createCurrentData(12345, 12345, 0x0C)), // want up + ready
-			ExpectedPID:  12345,
+			Name:          "s6_current_running_linux_amd64",
+			Architecture:  "amd64",
+			OS:            "linux",
+			Description:   "Running service with PID 12345 on Linux AMD64",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createCurrentData(12345, 12345, 0x0C)), // want up + ready
+			ExpectedPID:   12345,
 			ExpectedState: StateRunning,
 		},
 		{
-			Name:         "s6_current_down_linux_arm64",
-			Architecture: "arm64",
-			OS:           "linux",
-			Description:  "Down service on Linux ARM64",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createCurrentData(0, 0, 0x00)), // want down
-			ExpectedPID:  0,
+			Name:          "s6_current_down_linux_arm64",
+			Architecture:  "arm64",
+			OS:            "linux",
+			Description:   "Down service on Linux ARM64",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createCurrentData(0, 0, 0x00)), // want down
+			ExpectedPID:   0,
 			ExpectedState: StateDown,
 		},
 		{
-			Name:         "s6_current_paused_freebsd_amd64",
-			Architecture: "amd64",
-			OS:           "freebsd",
-			Description:  "Paused service with PID 5678",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createCurrentData(5678, 5678, 0x05)), // paused + want up
-			ExpectedPID:  5678,
+			Name:          "s6_current_paused_freebsd_amd64",
+			Architecture:  "amd64",
+			OS:            "freebsd",
+			Description:   "Paused service with PID 5678",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createCurrentData(5678, 5678, 0x05)), // paused + want up
+			ExpectedPID:   5678,
 			ExpectedState: StatePaused,
 		},
 		{
-			Name:         "s6_current_finishing_linux_amd64",
-			Architecture: "amd64",
-			OS:           "linux",
-			Description:  "Service finishing with PID 9999",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createCurrentData(9999, 9999, 0x02)), // finishing
-			ExpectedPID:  9999,
+			Name:          "s6_current_finishing_linux_amd64",
+			Architecture:  "amd64",
+			OS:            "linux",
+			Description:   "Service finishing with PID 9999",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createCurrentData(9999, 9999, 0x02)), // finishing
+			ExpectedPID:   9999,
 			ExpectedState: StateFinishing,
 		},
 		{
-			Name:         "s6_current_starting_darwin_arm64",
-			Architecture: "arm64",
-			OS:           "darwin",
-			Description:  "Service starting (want up but no PID yet)",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createCurrentData(0, 0, 0x04)), // want up, no PID
-			ExpectedPID:  0,
+			Name:          "s6_current_starting_darwin_arm64",
+			Architecture:  "arm64",
+			OS:            "darwin",
+			Description:   "Service starting (want up but no PID yet)",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createCurrentData(0, 0, 0x04)), // want up, no PID
+			ExpectedPID:   0,
 			ExpectedState: StateStarting,
 		},
 		{
-			Name:         "s6_current_largepid_linux_amd64",
-			Architecture: "amd64",
-			OS:           "linux",
-			Description:  "Running service with 64-bit PID (testing large PIDs)",
-			Parser:       parser,
-			HexData:      hex.EncodeToString(createCurrentData(4294967296, 4294967296, 0x0C)), // 2^32
-			ExpectedPID:  4294967296,
+			Name:          "s6_current_largepid_linux_amd64",
+			Architecture:  "amd64",
+			OS:            "linux",
+			Description:   "Running service with 64-bit PID (testing large PIDs)",
+			Parser:        parser,
+			HexData:       hex.EncodeToString(createCurrentData(4294967296, 4294967296, 0x0C)), // 2^32
+			ExpectedPID:   4294967296,
 			ExpectedState: StateRunning,
 		},
 	}
@@ -404,17 +404,17 @@ func TestS6StateParserCurrent(t *testing.T) {
 
 func TestGetStateParser(t *testing.T) {
 	tests := []struct {
-		name        string
-		serviceType ServiceType
-		dataSize    int
-		expectError bool
+		name           string
+		serviceType    ServiceType
+		dataSize       int
+		expectError    bool
 		expectedParser string
 	}{
 		{
-			name:        "runit_valid_size",
-			serviceType: ServiceTypeRunit,
-			dataSize:    RunitStatusSize,
-			expectError: false,
+			name:           "runit_valid_size",
+			serviceType:    ServiceTypeRunit,
+			dataSize:       RunitStatusSize,
+			expectError:    false,
 			expectedParser: "runit",
 		},
 		{
@@ -424,24 +424,24 @@ func TestGetStateParser(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "daemontools_valid_size",
-			serviceType: ServiceTypeDaemontools,
-			dataSize:    DaemontoolsStatusSize,
-			expectError: false,
+			name:           "daemontools_valid_size",
+			serviceType:    ServiceTypeDaemontools,
+			dataSize:       DaemontoolsStatusSize,
+			expectError:    false,
 			expectedParser: "daemontools",
 		},
 		{
-			name:        "s6_pre220_size",
-			serviceType: ServiceTypeS6,
-			dataSize:    S6StatusSizePre220,
-			expectError: false,
+			name:           "s6_pre220_size",
+			serviceType:    ServiceTypeS6,
+			dataSize:       S6StatusSizePre220,
+			expectError:    false,
 			expectedParser: "s6-pre-2.20.0",
 		},
 		{
-			name:        "s6_current_size",
-			serviceType: ServiceTypeS6,
-			dataSize:    S6StatusSizeCurrent,
-			expectError: false,
+			name:           "s6_current_size",
+			serviceType:    ServiceTypeS6,
+			dataSize:       S6StatusSizeCurrent,
+			expectError:    false,
 			expectedParser: "s6-current",
 		},
 		{

@@ -31,7 +31,7 @@ func TestSimpleServiceCreation(t *testing.T) {
 			serviceDir := filepath.Join("/tmp/test-services", serviceName)
 
 			// Clean up after test
-			defer os.RemoveAll(serviceDir)
+			defer func() { _ = os.RemoveAll(serviceDir) }()
 
 			// Create service
 			builder := NewServiceBuilderWithConfig(serviceName, "/tmp/test-services", sys.config)
@@ -57,7 +57,7 @@ func TestSimpleServiceCreation(t *testing.T) {
 
 			// Check run script is executable
 			info, err := os.Stat(runScript)
-			if err == nil && info.Mode()&0111 == 0 {
+			if err == nil && info.Mode()&0o111 == 0 {
 				t.Errorf("Run script is not executable")
 			}
 
@@ -100,10 +100,10 @@ func TestSimpleSystemdCreation(t *testing.T) {
 	systemdBuilder.UseSudo = false
 
 	// Create unit directory
-	if err := os.MkdirAll(systemdBuilder.UnitDir, 0755); err != nil {
+	if err := os.MkdirAll(systemdBuilder.UnitDir, 0o755); err != nil {
 		t.Fatalf("Failed to create unit directory: %v", err)
 	}
-	defer os.RemoveAll(systemdBuilder.UnitDir)
+	defer func() { _ = os.RemoveAll(systemdBuilder.UnitDir) }()
 
 	// Generate unit content
 	unitContent, err := systemdBuilder.BuildSystemdUnit()
@@ -141,7 +141,7 @@ func TestServiceWithRunningSupervision(t *testing.T) {
 	// Test systemd if available and running
 	t.Run("systemd", func(t *testing.T) {
 		RequireSystemd(t) // This will skip if systemctl not available
-		
+
 		// Check if systemd is actually running as init
 		if output, err := exec.Command("systemctl", "is-system-running").Output(); err == nil {
 			status := strings.TrimSpace(string(output))
@@ -149,7 +149,7 @@ func TestServiceWithRunningSupervision(t *testing.T) {
 				t.Skipf("Systemd present but not running as init: %s", status)
 			}
 		}
-		
+
 		testSystemdService(ctx, t)
 	})
 
@@ -170,7 +170,7 @@ func testSystemdService(ctx context.Context, t *testing.T) {
 	builder.WithCmd([]string{"/bin/sh", "-c", "while true; do date; sleep 5; done"})
 
 	systemdBuilder := NewBuilderSystemd(builder)
-	systemdBuilder.UnitDir = "/run/systemd/system" // Use runtime directory
+	systemdBuilder.UnitDir = systemdUnitDir // Use runtime directory
 	systemdBuilder.UseSudo = false
 
 	if err := systemdBuilder.BuildWithContext(ctx); err != nil {

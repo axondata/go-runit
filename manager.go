@@ -55,18 +55,31 @@ func (m *Manager) execute(ctx context.Context, services []string, op func(contex
 		return nil
 	}
 
+	// Semaphore for concurrency control
 	sem := make(chan struct{}, m.Concurrency)
+
+	// Use WaitGroup for simpler goroutine management since we have finite work
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	merr := &MultiError{}
 
+	// Launch a goroutine for each service
 	for _, service := range services {
+
 		wg.Add(1)
 		go func(svc string) {
 			defer wg.Done()
 
-			sem <- struct{}{}
-			defer func() { <-sem }()
+			// Acquire semaphore slot
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				mu.Lock()
+				merr.Add(ctx.Err())
+				mu.Unlock()
+				return
+			}
 
 			// Default to runit for backward compatibility
 			client, err := NewClientRunit(svc)
@@ -77,6 +90,7 @@ func (m *Manager) execute(ctx context.Context, services []string, op func(contex
 				return
 			}
 
+			// Create operation context with timeout if configured
 			opCtx := ctx
 			if m.Timeout > 0 {
 				var cancel context.CancelFunc
@@ -84,6 +98,7 @@ func (m *Manager) execute(ctx context.Context, services []string, op func(contex
 				defer cancel()
 			}
 
+			// Execute the operation
 			if err := op(opCtx, client); err != nil {
 				mu.Lock()
 				merr.Add(err)
@@ -92,7 +107,9 @@ func (m *Manager) execute(ctx context.Context, services []string, op func(contex
 		}(service)
 	}
 
+	// Wait for all goroutines to complete
 	wg.Wait()
+
 	return merr.Err()
 }
 
@@ -130,19 +147,32 @@ func (m *Manager) Status(ctx context.Context, services ...string) (map[string]St
 		return make(map[string]Status), nil
 	}
 
+	// Semaphore for concurrency control
 	sem := make(chan struct{}, m.Concurrency)
+
+	// Use WaitGroup for simpler goroutine management since we have finite work
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	results := make(map[string]Status)
 	merr := &MultiError{}
 
+	// Launch a goroutine for each service
 	for _, service := range services {
+
 		wg.Add(1)
 		go func(svc string) {
 			defer wg.Done()
 
-			sem <- struct{}{}
-			defer func() { <-sem }()
+			// Acquire semaphore slot
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				mu.Lock()
+				merr.Add(ctx.Err())
+				mu.Unlock()
+				return
+			}
 
 			// Default to runit for backward compatibility
 			client, err := NewClientRunit(svc)
@@ -153,6 +183,7 @@ func (m *Manager) Status(ctx context.Context, services ...string) (map[string]St
 				return
 			}
 
+			// Create operation context with timeout if configured
 			opCtx := ctx
 			if m.Timeout > 0 {
 				var cancel context.CancelFunc
@@ -160,6 +191,7 @@ func (m *Manager) Status(ctx context.Context, services ...string) (map[string]St
 				defer cancel()
 			}
 
+			// Get status
 			status, err := client.Status(opCtx)
 			if err != nil {
 				mu.Lock()
@@ -168,12 +200,15 @@ func (m *Manager) Status(ctx context.Context, services ...string) (map[string]St
 				return
 			}
 
+			// Store result
 			mu.Lock()
 			results[svc] = status
 			mu.Unlock()
 		}(service)
 	}
 
+	// Wait for all goroutines to complete
 	wg.Wait()
+
 	return results, merr.Err()
 }
